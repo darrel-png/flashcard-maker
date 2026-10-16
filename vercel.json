@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "flashcard-maker.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/flashcard-maker.html"
+    },
+    {
+      "src": "/flashcard-maker",
+      "dest": "/flashcard-maker.html"
+    }
+  ]
+}
