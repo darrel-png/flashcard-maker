@@ -8,7 +8,8 @@ A retro 80s neon-themed, self-contained HTML flashcard maker with intelligent di
 - **Study** mode with flip cards, known/unknown tracking, and table view
 - **Test** mode with multiple-choice questions and smart distractor generation
 - **Import/Export** JSON, TXT, CSV, and PDF formats
-- **Share questions via link** — encode flashcards as base64 URL params, auto-import on open
+- **Share questions via link** — encode flashcards AND test history as base64 URL params, auto-import on open
+- **Test history exchange** — export/import wrong-answer patterns to enhance distractor quality across users
 - **Subject-based organization** — group, filter, and hide cards by subject
 - **Edit** individual flashcards via modal dialog
 - **Test history** — wrong answers are tracked and reused to enhance future distractors
@@ -25,6 +26,15 @@ Generate a shareable link to send flashcards to another user:
 
 > No server required — everything works client-side. The link encodes data as
 > compact base64, decoded and imported directly in the browser.
+
+## Share Test History Between Users
+
+Wrong answers from tests are tracked and can be shared to improve distractor generation for everyone:
+
+- **Export** — Export your test history (wrong-answer patterns) as JSON in the Import/Export tab
+- **Share Link** — Generate a link with `?th=<base64>` encoding your wrong-answer data
+- **Import** — Paste another user's JSON to merge their wrong answers into your local history (up to 20 per question)
+- **Submit to Improve Reference Base** — Opens a pre-filled GitHub issue to submit data for aggregation into the embedded REFERENCE_KNOWLEDGE database
 
 ## Intelligent Distractor Generation
 
