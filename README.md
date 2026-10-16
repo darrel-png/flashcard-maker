@@ -8,9 +8,23 @@ A retro 80s neon-themed, self-contained HTML flashcard maker with intelligent di
 - **Study** mode with flip cards, known/unknown tracking, and table view
 - **Test** mode with multiple-choice questions and smart distractor generation
 - **Import/Export** JSON, TXT, CSV, and PDF formats
+- **Share questions via link** — encode flashcards as base64 URL params, auto-import on open
 - **Subject-based organization** — group, filter, and hide cards by subject
 - **Edit** individual flashcards via modal dialog
 - **Test history** — wrong answers are tracked and reused to enhance future distractors
+
+## Share Questions Between Users
+
+Generate a shareable link to send flashcards to another user:
+
+1. Select a subject (or "All Subjects") in the **Import/Export** tab
+2. Click **Generate Share Link** — a URL with base64-encoded cards is created
+3. Click **Copy** to share the link, or just send the URL
+4. When another user opens the link, the app detects the `?import=` parameter,
+   prompts for confirmation, and imports the cards into their collection
+
+> No server required — everything works client-side. The link encodes data as
+> compact base64, decoded and imported directly in the browser.
 
 ## Intelligent Distractor Generation
 
