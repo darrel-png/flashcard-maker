@@ -1,0 +1,3128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flashcard Maker</title>
+<style>
+  :root {
+    --bg: #0a001a;
+    --card: #1a1a2e;
+    --card-alt: #16213e;
+    --text: #e0e0ff;
+    --muted: #a0a0c0;
+    --accent: #00ffff;
+    --accent2: #ff00ff;
+    --accent3: #ffff00;
+    --danger: #ff44aa;
+    --border: #400060;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    background:
+      radial-gradient(circle at 20% 50%, rgba(0, 255, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 0, 255, 0.08) 0%, transparent 50%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 12px;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container { max-width: 1800px; margin: 0 auto; position: relative; z-index: 1; }
+  h1 {
+    font-size: 1.8rem; margin-bottom: 8px;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(0, 255, 255, 0.3);
+    letter-spacing: 2px;
+  }
+  .subtitle {
+    color: var(--muted); margin-bottom: 24px; font-size: 0.95rem;
+    letter-spacing: 1px;
+  }
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 4px;
+    background: var(--card);
+    border: 2px solid var(--accent);
+    border-bottom: none;
+    border-radius: 0 0 0 0;
+    padding: 4px; margin-bottom: 0;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2);
+  }
+  .tab-btn {
+    flex: 1; padding: 12px 16px;
+    border: none; background: transparent;
+    color: var(--muted); font-size: 0.95rem; cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    border: 1px solid transparent; letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--accent2); color: var(--bg); font-weight: 600;
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    border-color: var(--accent2);
+  }
+  .tab-content {
+    display: none; padding: 16px;
+    background: var(--card);
+    border: 2px solid var(--accent);
+    border-top: none;
+    border-radius: 0 10px 10px 10px;
+    min-height: 300px;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4), 0 0 20px rgba(0, 255, 255, 0.2);
+  }
+  .tab-content.active { display: block; }
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  label {
+    display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  input, textarea, select {
+    width: 100%; padding: 12px 14px;
+    border: 2px solid var(--border); border-radius: 8px;
+    background: var(--card-alt); color: var(--text);
+    font-size: 0.95rem; font-family: inherit;
+    transition: all 0.2s;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.3), inset 0 0 5px rgba(0, 0, 0, 0.5);
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  .row { display: flex; gap: 16px; }
+  .row > .form-group { flex: 1; }
+  .actions { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  button {
+    padding: 10px 20px;
+    border: 2px solid var(--border);
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    background: var(--card-alt); color: var(--text); letter-spacing: 1px;
+  }
+  button.btn-primary {
+    background: var(--accent); color: var(--bg);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+  }
+  button.btn-primary:hover {
+    background: #5fd0e3; border-color: #5fd0e3;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), 0 0 30px rgba(0, 255, 255, 0.4);
+    transform: translateY(-2px);
+  }
+  button.btn-secondary {
+    background: var(--card-alt); color: var(--text);
+    border-color: var(--border);
+  }
+  button.btn-secondary:hover {
+    background: #16213e; border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+  }
+  button.btn-danger {
+    background: var(--danger); color: var(--bg);
+    border-color: var(--danger);
+    box-shadow: 0 0 10px rgba(255, 68, 170, 0.4);
+  }
+  button.btn-danger:hover {
+    background: #ff5fa3; border-color: #ff5fa3;
+    box-shadow: 0 0 15px rgba(255, 68, 170, 0.6);
+    transform: translateY(-2px);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Data table */
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th {
+    color: var(--accent); font-weight: 600; font-size: 0.8rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 2px solid var(--accent2);
+  }
+  td { color: var(--text); }
+  tr:hover td {
+    background: var(--card);
+    box-shadow: inset 0 0 8px rgba(0, 255, 255, 0.1);
+  }
+  /* Create tab table — let it auto-size, allow text wrapping */
+  #data-table { table-layout: auto; }
+  #data-table th,
+  #data-table td { word-break: break-word; white-space: normal; }
+  /* Per-subject hide button in table */
+  .subject-hide-btn {
+    display: inline-block;
+    width: 18px; height: 18px;
+    margin-left: 6px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 50%;
+    border: 1px solid var(--accent2);
+    background: transparent;
+    color: var(--accent2);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .subject-hide-btn:hover {
+    background: var(--accent2);
+    color: var(--bg);
+    box-shadow: 0 0 8px rgba(255, 0, 255, 0.6);
+  }
+  .hidden-subjects-bar {
+    flex-wrap: wrap;
+  }
+  .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+  .text-center { text-align: center; }
+  .empty-state {
+    text-align: center; padding: 40px 20px; color: var(--muted);
+    border: 1px dashed var(--border); border-radius: 8px;
+  }
+  /* Study mode */
+  .study-container {
+    max-width: 600px; margin: 0 auto;
+    perspective: 1000px;
+  }
+  .flashcard {
+    width: 100%; min-height: 280px;
+    background: var(--card);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 32px 24px; cursor: pointer;
+    transition: all 0.4s;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    position: relative; overflow: hidden;
+  }
+  .flashcard::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent));
+  }
+  .flashcard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.5), 0 0 50px rgba(0, 255, 255, 0.3);
+  }
+  .flashcard .label {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--accent); margin-bottom: 16px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  }
+  .flashcard .content {
+    font-size: 1.3rem; text-align: center; line-height: 1.5;
+    word-break: break-word; color: var(--text);
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  }
+  .flashcard.flipped {
+    background: var(--card-alt); border-color: var(--accent2);
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+  }
+  .flashcard.flipped::before {
+    background: linear-gradient(90deg, var(--accent2), var(--accent3), var(--accent2));
+  }
+  .study-controls {
+    display: flex; justify-content: center; gap: 16px; margin-top: 24px; flex-wrap: wrap;
+  }
+  .counter {
+    text-align: center; margin-bottom: 16px;
+    color: var(--muted); font-size: 0.9rem; letter-spacing: 1px;
+  }
+  .badge {
+    display: inline-block; padding: 2px 10px;
+    border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    margin-left: 8px; background: var(--border); color: var(--muted);
+  }
+  .badge.known { background: rgba(255, 255, 0, 0.2); color: var(--accent3); }
+  .badge.unknown { background: rgba(255, 68, 170, 0.2); color: var(--accent2); }
+  /* Study table group headers */
+  .group-header {
+    background: var(--card-alt);
+    border-bottom: 2px dashed var(--accent2);
+  }
+  .group-header:hover {
+    background: var(--border);
+  }
+  /* Test mode */
+  .test-container { max-width: 600px; margin: 0 auto; }
+  .test-question {
+    background: var(--card); border-radius: 12px; padding: 28px;
+    margin-bottom: 20px; text-align: center;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    position: relative; overflow: hidden;
+  }
+  .test-question::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+  }
+  .test-question .label {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--accent2); margin-bottom: 16px;
+    text-shadow: 0 0 5px rgba(255, 0, 255, 0.6);
+  }
+  .test-question .question-text {
+    font-size: 1.4rem; line-height: 1.5; margin-bottom: 8px;
+    color: var(--text);
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  }
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .option-btn {
+    padding: 14px; text-align: center;
+    background: var(--card-alt); border: 2px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 0.9rem;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.5px;
+  }
+  .option-btn:hover:not(.disabled) {
+    background: var(--card); border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4), inset 0 0 5px rgba(0, 0, 0, 0.5);
+    transform: translateY(-2px);
+  }
+  .option-btn.correct {
+    background: rgba(255, 255, 0, 0.15); border-color: var(--accent3);
+    color: var(--bg);
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+  }
+  .option-btn.incorrect {
+    background: rgba(255, 68, 170, 0.15); border-color: var(--danger);
+    color: var(--text);
+    box-shadow: 0 0 15px rgba(255, 68, 170, 0.3);
+  }
+  .option-btn.disabled { cursor: default; }
+  .result-banner {
+    margin: 16px 0; padding: 14px 20px; border-radius: 8px;
+    text-align: center; font-weight: 600; display: none;
+    border: 1px solid var(--border); letter-spacing: 1px;
+  }
+  .result-banner.correct {
+    background: rgba(255, 255, 0, 0.1); color: var(--accent3);
+    border-color: var(--accent3);
+  }
+  .result-banner.incorrect {
+    background: rgba(255, 68, 170, 0.1); color: var(--accent2);
+    border-color: var(--danger);
+  }
+  .subject-tag {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 3px 10px; border-radius: 4px; margin-bottom: 8px;
+    display: inline-block;
+  }
+  .timer-bar {
+    position: relative; height: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border); border-radius: 4px;
+    margin: 8px 0; overflow: hidden;
+  }
+  .timer-fill {
+    height: 100%; background: var(--accent3);
+    width: 100%; transition: width 0.1s linear;
+    box-shadow: 0 0 6px var(--accent3);
+  }
+  .timer-text {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.75rem; color: var(--accent);
+    font-weight: 600;
+  }
+  .timer-low .timer-fill {
+    background: var(--accent3);
+    animation: pulse 0.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .score-display {
+    text-align: center; margin-top: 30px; padding: 24px;
+    background: var(--card); border-radius: 12px;
+    border: 2px solid var(--accent2);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+    display: none;
+  }
+  .score-display h2 {
+    font-size: 1.5rem; margin-bottom: 8px;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  }
+  .score-display .score {
+    font-size: 2.5rem; font-weight: 700;
+    color: var(--accent3);
+    text-shadow: 0 0 15px rgba(255, 255, 0, 0.6);
+  }
+  .score-bar {
+    height: 8px; background: var(--border);
+    border-radius: 4px; overflow: hidden; margin: 12px 0;
+  }
+  .score-fill {
+    height: 100%; background: var(--accent); border-radius: 4px;
+    transition: width 0.6s;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+  }
+  /* Import/Export */
+  .json-area {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.82rem; line-height: 1.6;
+  }
+  .hint {
+   color: var(--muted); font-size: 0.8rem; margin-top: 4px;
+   letter-spacing: 0.5px;
+  }
+  /* Quick-pick subject buttons */
+  #subject-quick-picks button {
+   padding: 4px 12px; font-size: 0.8rem; min-width: auto;
+  }
+  .stats-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; padding: 10px 16px;
+    background: var(--card-alt); border-radius: 8px;
+    font-size: 0.85rem;
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+  }
+  .stats-bar .count { font-weight: 600; color: var(--accent); }
+
+  /* Visual separator between Create form and table */
+  .create-divider {
+    margin: 24px 0;
+    border-top: 2px solid var(--border);
+    position: relative;
+  }
+  .create-divider::before {
+    content: "";
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+  }
+  .create-divider-label {
+    display: inline-block;
+    background: var(--bg);
+    padding: 0 12px;
+    color: var(--accent2);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+    margin-top: -10px;
+  }
+  .create-divider .btn-sm {
+    float: right;
+    margin-top: -5px;
+  }
+  /* Modal */
+  .modal {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: all 0.2s; z-index: 100;
+    backdrop-filter: blur(5px);
+  }
+  .modal.active { opacity: 1; visibility: visible; }
+  .modal-content {
+    background: var(--card); border-radius: 12px; padding: 28px;
+    max-width: 500px; width: 90%;
+    border: 2px solid var(--accent2);
+    box-shadow: 0 0 25px rgba(255, 0, 255, 0.4);
+  }
+  .modal h3 {
+    margin-bottom: 16px; font-size: 1.2rem;
+    color: var(--accent); letter-spacing: 1px;
+  }
+  .modal textarea { min-height: 200px; }
+  .modal .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+
+  /* ===== Study Tab Sidebar Layout ===== */
+  .study-layout {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+  }
+  .study-sidebar {
+    flex: 0 0 280px;
+    max-width: 280px;
+    overflow-y: auto;
+  }
+  .study-sidebar .stats-bar.study-options {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .study-sidebar .stats-bar.study-options > span {
+    margin-bottom: 4px;
+  }
+  .study-sidebar .stats-bar.study-options > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .study-main {
+    flex: 1;
+    min-width: 0;
+  }
+  /* Create and Test tabs reuse the same sidebar pattern */
+  .create-layout,
+  .test-layout {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+  }
+  .create-sidebar,
+  .test-sidebar {
+    flex: 0 0 280px;
+    max-width: 280px;
+    overflow-y: auto;
+  }
+  .create-sidebar .stats-bar.create-options,
+  .test-sidebar .stats-bar.test-options,
+  .test-sidebar .test-settings {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .create-sidebar .stats-bar.create-options > span,
+  .test-sidebar .stats-bar.test-options > span {
+    margin-bottom: 4px;
+  }
+  /* Stack form groups vertically in sidebar for narrow width */
+  .create-sidebar .row,
+  .test-sidebar .row {
+    display: block;
+  }
+  .create-sidebar .row > .form-group,
+  .test-sidebar .row > .form-group {
+    flex: 1;
+    min-width: auto !important;
+    margin-bottom: 12px;
+    display: block !important;
+  }
+  /* Batch section wraps in narrow sidebar */
+  .create-sidebar #batch-section {
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 0.75rem;
+  }
+  .create-sidebar #batch-subject {
+    width: 110px !important;
+    font-size: 0.7rem;
+  }
+  .create-main,
+  .test-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ===== Mobile Fixes ===== */
+  @media (max-width: 768px) {
+    body { padding: 10px; }
+    h1 { font-size: 1.4rem; }
+    .subtitle { font-size: 0.85rem; margin-bottom: 16px; }
+
+    /* Tabs — more compact on mobile */
+    .tab-btn { padding: 10px 8px; font-size: 0.8rem; }
+
+    /* Form rows — stack vertically on mobile */
+    .row { display: block; }
+    .row > .form-group { flex: 1; min-width: auto; margin-bottom: 12px; }
+
+    /* Touch target improvements */
+    button { padding: 12px 20px; font-size: 0.85rem; }
+    .btn-sm { padding: 8px 14px; font-size: 0.8rem; min-width: 44px; min-height: 44px; }
+    .btn-sm.btn-secondary { padding: 8px 12px; }
+
+    /* Stats bar — compact layout */
+    .stats-bar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+    .stats-bar > span:first-child { font-size: 0.8rem; }
+    #batch-section { display: flex !important; flex-wrap: wrap; gap: 4px; }
+
+    /* Table — scrollable on mobile */
+    .data-table-wrapper { overflow-x: auto; }
+    table { font-size: 0.8rem; }
+    th, td { padding: 8px 10px; }
+
+    /* Flashcard — reduce height for small screens */
+    .flashcard { min-height: 200px; padding: 24px 20px; }
+    .flashcard .content { font-size: 1.1rem; }
+    .flashcard .label { font-size: 0.7rem; }
+
+    /* Study controls */
+    .study-controls { gap: 12px; }
+
+    /* Test mode — stack options on mobile */
+    .options { grid-template-columns: 1fr; }
+    .option-btn { padding: 16px; font-size: 0.85rem; }
+    .test-question { padding: 24px 20px; }
+    .test-question .question-text { font-size: 1.2rem; }
+
+    /* Modal — full width on mobile */
+    .modal-content { width: 95%; padding: 24px 20px; }
+
+    /* Create divider */
+    .create-divider { margin: 20px 0; }
+    .create-divider-label { font-size: 0.7rem; }
+
+    /* Input fields */
+    input, textarea, select { padding: 10px 12px; font-size: 0.85rem; }
+    textarea { min-height: 70px; }
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 8px; }
+
+    /* Tabs — may need scrolling on very small screens */
+    .tabs { overflow-x: auto; }
+
+    /* Study sidebar stacks on top on mobile */
+    .study-layout, .create-layout, .test-layout { flex-direction: column; }
+    .study-sidebar, .create-sidebar, .test-sidebar { flex: 0 0 auto; max-width: none; }
+
+    /* Full-width buttons in actions */
+    .actions { flex-direction: column; gap: 8px; }
+    .actions button { width: 100%; }
+
+    .h1 { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Flashcard Maker</h1>
+  <p class="subtitle">Create your own flashcards from your data. Enter terms and definitions, then study or test yourself.</p>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('create')">Create</button>
+    <button class="tab-btn" onclick="showTab('study')">Study</button>
+    <button class="tab-btn" onclick="showTab('test')">Test</button>
+    <button class="tab-btn" onclick="showTab('import')">Import/Export</button>
+  </div>
+
+  <!-- Create Tab -->
+  <div id="create-tab" class="tab-content active">
+    <div class="create-layout">
+      <!-- Sidebar: Options + Form -->
+      <div class="create-sidebar">
+        <div class="stats-bar create-options">
+          <span>Total cards: <span class="count" id="card-count">0</span></span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Ungroup</button>
+            <button class="btn-sm btn-secondary" onclick="toggleCreateForm()" id="create-form-hide-btn">Hide Form</button>
+            <button class="btn-sm btn-danger" onclick="clearAll()">Clear All</button>
+          </div>
+          <span id="batch-section" style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
+            <span class="hint" style="font-size: 0.75rem; color: var(--muted); margin-right: 4px;">Select rows →</span>
+            <button class="btn-sm btn-secondary" onclick="toggleSelectAll()">Select All</button>
+            <input type="text" id="batch-subject" list="subject-datalist" placeholder="Subject to apply..." style="width:140px; padding:4px 8px; font-size: 0.8rem;" />
+            <button class="btn-sm btn-secondary" onclick="batchAssignSubject()">Apply to Selected</button>
+            <span class="count" id="selected-count" style="color: var(--accent);">0 selected</span>
+            <span id="batch-status" style="color: var(--muted); font-size: 0.8rem; margin-left: 8px;"></span>
+          </span>
+        </div>
+        <div id="create-form">
+    <div class="row">
+      <div class="form-group">
+        <label for="term">Term / Question</label>
+        <input type="text" id="term" placeholder="e.g. What is the capital of France?" />
+      </div>
+      <div class="form-group">
+        <label for="definition">Definition / Answer</label>
+        <input type="text" id="definition" placeholder="e.g. Paris" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="form-group" style="flex: 2; min-width: 180px;">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" list="subject-datalist" placeholder="e.g. Geography, Math, Science..." />
+      </div>
+      <div class="form-group" style="justify-content: flex-end; display:flex; align-items:flex-end;">
+        <button class="btn-secondary" onclick="applySubjectToForm()">Apply to Empty Subjects</button>
+      </div>
+    </div>
+
+    <!-- Quick-pick subject buttons -->
+    <div id="subject-quick-picks" style="margin: 8px 0 4px 0; display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px;">
+      <span class="hint" style="display: inline-block;">Quick-pick:</span>
+    </div>
+
+    <div class="form-group">
+      <label for="bulk-data">Or paste multiple cards (one per two lines, separated by --- or blank line):</label>
+      <textarea id="bulk-data" placeholder="Term 1&#10;Definition 1&#10;&#10;Term 2&#10;Definition 2"></textarea>
+    </div>
+    <div class="row">
+      <div class="form-group" style="margin-top: 8px;">
+        <label for="bulk-subject">Bulk Subject (optional — applies to all pasted cards):</label>
+        <input type="text" id="bulk-subject" list="subject-datalist" placeholder="e.g. Geography" />
+      </div>
+      <div class="form-group" style="margin-top: 8px; justify-content: flex-end; display:flex; align-items:flex-end;">
+        <span class="hint">Tip: add <code>#subject: Math</code> on the 3rd line of any block to override.</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" onclick="addCard()">Add Single Card</button>
+      <button class="btn-secondary" onclick="addBulkCards()">Add Bulk Cards</button>
+      <button class="btn-secondary" onclick="editMode()">Edit Cards</button>
+    </div>
+    </div>
+      </div>
+      <!-- Main: Table Only -->
+      <div class="create-main">
+    <!-- Visual separator - on top of table -->
+    <div class="create-divider">
+      <span class="create-divider-label">Your Flashcards</span>
+      <button class="btn-sm btn-secondary" onclick="toggleCreateTable()" id="create-table-hide-btn">Hide Table</button>
+      <div id="hidden-subjects-bar" class="hidden-subjects-bar" style="display:none;">
+        <span class="hint">Hidden subjects:</span>
+        <span id="hidden-subjects-list"></span>
+        <button class="btn-sm btn-secondary" onclick="clearHiddenSubjects()">Show All</button>
+      </div>
+    </div>
+    <div id="data-table-container" style="margin-top: 20px;">
+      <div class="data-table-wrapper">
+      <table id="data-table" style="display:none;">
+        <thead>
+          <tr>
+            <th class="text-center" id="checkbox-header" style="display:none;">
+              <input type="checkbox" id="select-all" onchange="toggleSelectAll()" />
+            </th>
+            <th>#</th>
+            <th>Term / Question</th>
+            <th>Definition / Answer</th>
+            <th>Subject</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="data-table-body"></tbody>
+      </table>
+      <div id="empty-state" class="empty-state">
+        <p>No flashcards yet. Add one above!</p>
+      </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Study Tab -->
+  <div id="study-tab" class="tab-content">
+    <div class="study-layout">
+      <!-- Sidebar: Options on the side -->
+      <div class="study-sidebar">
+        <div class="stats-bar study-options">
+          <span>Study Mode</span>
+          <select id="study-subject-filter" onchange="filterStudyBySubject()">
+            <option value="all">All Subjects</option>
+          </select>
+          <button class="btn-sm btn-secondary" id="view-toggle-btn" onclick="toggleStudyView()">Table View</button>
+          <button class="btn-sm btn-secondary" id="group-by-btn" onclick="toggleGroupBySubject()" style="display:none;">Ungroup Subjects</button>
+          <button class="btn-sm btn-secondary" onclick="shuffleStudyCards()">Shuffle</button>
+          <button class="btn-sm btn-secondary" onclick="resetStudy()">Reset Progress</button>
+        </div>
+      </div>
+      <!-- Main: Flashcard View -->
+      <div class="study-main">
+      <div id="study-ready">
+      <div class="counter"><span id="study-index">0</span> / <span id="study-total">0</span></div>
+      <div class="study-container">
+        <div class="flashcard" id="flashcard" onclick="flipCard()">
+          <div class="label">Flashcard</div>
+          <div class="content" id="flashcard-content">Click to reveal</div>
+        </div>
+      </div>
+      <div class="study-controls">
+        <button class="btn-secondary" onclick="prevCard()">Previous</button>
+        <button class="btn-secondary" onclick="nextCard()">Next</button>
+        <button class="btn-primary" onclick="markKnown()">Known</button>
+        <button class="btn-secondary" onclick="markUnknown()">Don't Know</button>
+      </div>
+      <div class="counter" id="progress-bar" style="display:none;">
+        <span>Known: </span><span class="count" id="known-count" style="color: var(--accent3);">0</span>
+        <span style="margin-left: 12px;">Unknown: </span><span class="count" id="unknown-count" style="color: var(--danger);">0</span>
+      </div>
+    </div>
+
+    <!-- Table View -->
+    <div id="study-table-view" class="form-group" style="display:none;">
+      <div class="counter" id="table-counter"></div>
+      <div style="overflow-x:auto; max-height:500px;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Term / Question</th>
+              <th>Definition / Answer</th>
+              <th>Subject</th>
+            </tr>
+          </thead>
+          <tbody id="study-table-body"></tbody>
+        </table>
+      </div>
+      <div class="hint" style="margin-top:12px;">Showing all flashcards in table format. Use the Create tab to edit or delete cards.</div>
+    </div>
+    <div id="study-empty" class="empty-state" style="display:none;">
+      <p>No flashcards to study. Add cards in the Create tab first!</p>
+    </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test Tab -->
+  <div id="test-tab" class="tab-content">
+    <div class="test-layout">
+      <!-- Sidebar: Options on the side -->
+      <div class="test-sidebar">
+        <div class="stats-bar test-options">
+          <span>Test Settings</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="test-subject-filter" onchange="filterTestBySubject()">
+              <option value="all">All Subjects</option>
+            </select>
+            <button class="btn-sm btn-secondary" id="settings-toggle" onclick="toggleSettings()">Hide</button>
+          </div>
+        </div>
+        <div id="test-settings" class="form-group" style="display:block; margin-bottom: 16px;">
+      <div class="row">
+        <div class="form-group">
+          <label for="choice-count">Choices per question</label>
+          <select id="choice-count">
+            <option value="2">2 options</option>
+            <option value="3">3 options</option>
+            <option value="4" selected>4 options</option>
+            <option value="5">5 options</option>
+            <option value="6">6 options</option>
+            <option value="7">7 options</option>
+            <option value="8">8 options</option>
+            <option value="9">9 options</option>
+            <option value="10">10 options</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="question-count">Questions</label>
+          <select id="question-count">
+            <option value="1">1 question</option>
+            <option value="2">2 questions</option>
+            <option value="3">3 questions</option>
+            <option value="5">5 questions</option>
+            <option value="7">7 questions</option>
+            <option value="10" selected>10 questions</option>
+            <option value="15">15 questions</option>
+            <option value="20">20 questions</option>
+            <option value="25">25 questions</option>
+            <option value="30">30 questions</option>
+            <option value="40">40 questions</option>
+            <option value="50">50 questions</option>
+            <option value="100">100 questions</option>
+            <option value="200">All cards</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="test-direction">Direction</label>
+          <select id="test-direction">
+            <option value="term-to-def" selected>Term → Definition</option>
+            <option value="def-to-term">Definition → Term</option>
+            <option value="random">Random (mixed)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="shuffle-answers">Shuffle answers</label>
+          <select id="shuffle-answers">
+            <option value="true" selected>Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="test-timer">Timer per question</label>
+          <select id="test-timer">
+            <option value="0" selected>None</option>
+            <option value="5">5 seconds</option>
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="show-subject">Show subject tag</label>
+          <select id="show-subject">
+            <option value="false" selected>No</option>
+            <option value="true">Yes</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="repeat-wrong">Repeat wrong answers</label>
+          <select id="repeat-wrong">
+            <option value="false">No</option>
+            <option value="true" selected>Yes</option>
+          </select>
+          <div class="hint" style="font-size:0.75rem;">Re-test questions answered incorrectly at the end.</div>
+          </div>
+          </div>
+          <div class="row">
+          <div class="form-group" style="margin-bottom: 4px;">
+            <div class="hint" style="font-size:0.7rem; margin-bottom: 8px;">Test history improves choices over time.</div>
+            <button class="btn-sm btn-secondary" onclick="clearTestHistory()" style="width: 100%;">Clear Test History</button>
+          </div>
+          </div>
+          <div class="hint">Settings apply to the next test you start.</div>
+    </div>
+      </div>
+      <!-- Main: Test -->
+      <div class="test-main">
+
+    <div id="test-ready">
+      <div class="counter"><span id="test-index">0</span> / <span id="test-total">0</span></div>
+      <div class="test-container">
+        <div class="test-question">
+          <div class="label">Question</div>
+          <div class="subject-tag" id="question-subject" style="display:none;"></div>
+          <div class="question-text" id="question-text">Click Start Test to begin</div>
+          <div class="timer-bar" id="timer-bar" style="display:none;">
+            <div class="timer-fill" id="timer-fill"></div>
+            <span class="timer-text" id="timer-text"></span>
+          </div>
+          <div class="options" id="options-container"></div>
+          <div class="result-banner" id="result-banner"></div>
+        </div>
+      </div>
+      <div class="actions" style="justify-content: center;">
+        <button class="btn-primary" id="start-test-btn" onclick="startTest()">Start Test</button>
+        <button class="btn-secondary" onclick="resetTest()" style="display:none;" id="reset-test-btn">Reset Test</button>
+      </div>
+    </div>
+    <div id="test-empty" class="empty-state" style="display:none;">
+      <p>No flashcards to test. Add cards in the Create tab first!</p>
+    </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import/Export Tab -->
+  <div id="import-tab" class="tab-content">
+    <div class="form-group">
+      <label for="json-data">Your data (JSON format):</label>
+      <textarea id="json-data" class="json-area" placeholder='[{"term":"...","definition":"...","subject":"Science"}, ...]'></textarea>
+    </div>
+
+    <!-- Subject-aware export -->
+    <div class="form-group" style="margin-top: 12px;">
+      <label for="export-subject-filter">Export cards by subject (leave "All" to export everything):</label>
+      <select id="export-subject-filter" onchange="updateExportDefaultSubject()">
+        <option value="all">All Subjects</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="btn-primary" onclick="importJSON()">Import JSON</button>
+      <button class="btn-secondary" onclick="exportJSON()">Export to JSON</button>
+      <button class="btn-secondary" id="export-subject-btn" onclick="exportJSONBySubject()" style="display:none;">Export Selected Subject</button>
+      <button class="btn-secondary" onclick="loadSampleData()">Load Sample Data</button>
+    </div>
+
+    <!-- Default subject for imports -->
+    <div class="form-group" style="margin-top: 16px;">
+      <div style="display:flex; gap:8px; align-items:flex-end;">
+        <div class="form-group" style="flex: 2;">
+          <label for="import-default-subject">Or upload a document (.txt, .csv, or .pdf):</label>
+          <input type="file" id="file-input" accept=".txt,.csv,.pdf,.json" onchange="handleFileSelect(event)" />
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 160px;">
+          <label for="import-default-subject">Default Subject (optional):</label>
+          <select id="import-default-subject" list="subject-datalist">
+            <option value="">— inherit from file —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="file-status" class="hint" style="display:none; margin-top: 8px;"></div>
+    <p class="hint">Supported formats:
+      <span style="color: var(--accent);">.txt</span> — "Term: Definition" or "Term\nDefinition" on alternate lines;
+      <span style="color: var(--accent);">.csv</span> — col 1 = term, col 2 = definition, col 3 = subject (optional);
+      <span style="color: var(--accent);">.pdf</span> — text extracted via pdf.js (loads on demand);
+      <span style="color: var(--accent);">.json</span> — same format as above.
+    </p>
+  </div>
+
+  <!-- Edit Flashcard Modal -->
+  <div id="edit-modal" class="modal" onclick="closeEditModal()">
+    <div class="modal-content" style="max-width: 600px; width: 95%;" onclick="event.stopPropagation()">
+      <h3>Edit Flashcard <span id="edit-card-index" style="color: var(--accent2);"></span></h3>
+      <div class="row">
+        <div class="form-group">
+          <label for="edit-term">Term / Question</label>
+          <input type="text" id="edit-term" />
+        </div>
+        <div class="form-group">
+          <label for="edit-definition">Definition / Answer</label>
+          <input type="text" id="edit-definition" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="edit-subject">Subject</label>
+          <input type="text" id="edit-subject" />
+        </div>
+        <div class="form-group" style="justify-content: flex-end; display: flex; align-items: flex-end;">
+          <select id="edit-subject-suggestions" onchange="applySubjectSuggestion()">
+            <option value="">-- Quick pick subject --</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted);">
+        Tip: Press ESC or click outside the modal to cancel. Changes are not saved until you click Save.
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveEdit()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Shared subject autocomplete datalist -->
+<datalist id="subject-datalist"></datalist>
+<script>
+let flashcards = JSON.parse(localStorage.getItem('flashcards') || '[]');
+let editModeActive = false;
+let selectedRows = new Set();
+let hiddenSubjects = new Set();
+let studyGroupBySubject = false;
+let createGroupBySubject = false;
+let studyFlipped = false;
+let knownCards = new Set();
+let unknownCards = new Set();
+let studyIndex = 0;
+let testActive = false;
+let testMode = 'mixed'; // 'term-to-def' or 'def-to-term' or 'mixed'
+let testQuestions = [];
+let currentTestQuestion = null;
+let testQuestionIndex = 0;
+let testScore = 0;
+let testTotal = 0;
+let testTimerInterval = null;
+let testTimerRemaining = 0;
+let wrongAnswers = [];
+// Test history: tracks which wrong answers were actually selected, to enhance future multiple-choice
+// Each entry: { term, definition, subject, wrongSelected, correctAnswer }
+let testHistory = JSON.parse(localStorage.getItem('testHistory') || '[]');
+var REFERENCE_KNOWLEDGE = {"EdTech":[{"t":"What are the Latin roots for Education?","d":"Educare, Educere."},{"t":"What are the Greek roots for Technology?","d":"Techne + Logia."},{"t":"What is formal learning?","d":"A program where goals/objectives are defined by a training department (e.g., schools and universities)."},{"t":"What is learning that takes place outside formally structured, class-room based activities called?","d":"Informal learning."},{"t":"What term defines a set of related knowledge, specific skills, and attitudes to effectively perform a task?","d":"Competency."},{"t":"What is the planning, creation, refinement, and evaluation of activities and resources to support goals called?","d":"Instructional design."},{"t":"What is another term for multimodal resources?","d":"Multimedia resources."},{"t":"In EdTech processes, what is \"Needs assessment\"?","d":"Figuring out what the actual problem is before introducing new technology."},{"t":"Which EdTech dimension involves translating course plans into reality and creating media/assessments?","d":"Application competence."},{"t":"What is a \"flipped classroom\"?","d":"Students study primary content at home and apply knowledge in class with teacher feedback."},{"t":"What role designs and develops courses, instructional systems, and learning environments?","d":"Instructional Designer."},{"t":"What role coaches teachers on how to bring new tech into their classrooms?","d":"Technology Coordinator."},{"t":"Who tests and analyzes data to see if the technology and lessons help students learn?","d":"Evaluator."},{"t":"Which learning theory asserts that learning occurs through a series of rewards or punishments?","d":"Behaviorism."},{"t":"Who are key theorists of Behaviorism?","d":"B.F. Skinner, John B. Watson, and Edward Thorndike."},{"t":"Which theory focuses on internal mental processes (how a person receives, organizes, and retrieves info)?","d":"Cognitivism."},{"t":"Which learning theory sees the learner as an active constructor of knowledge shaped by schemas?","d":"Constructivism."},{"t":"Who developed the concept of the Zone of Proximal Development (ZPD)?","d":"Lev Vygotsky."},{"t":"What theory approaches learning as a way to fulfill an individual's potential (e.g., Maslow's Hierarchy)?","d":"Humanism."},{"t":"What theory focuses on learning through forming connections (e.g., via social media networks)?","d":"Connectivism."},{"t":"What is procedural knowledge (learning how to do something) also known as?","d":"Intellectual skills."},{"t":"What are internal states that affect a person's choice of action toward an object or event?","d":"Attitudes."},{"t":"Which instructional strategy is used for memorizing or mastering facts and skills?","d":"Drill and Practice."},{"t":"Which instructional strategy uses a realistic environment for practicing decision-making without real-world risks?","d":"Simulation."},{"t":"Who developed the concept of Advance Organizers?","d":"David Ausubel."},{"t":"What are the two main components of technology?","d":"Hardware and Software."},{"t":"What are the four major uses of Educational Technology according to Dewey/Bruce & Levin?","d":"Inquiry, Communication, Construction, and Expression."},{"t":"Which technology principle requires tools to fit the learners' age, vocabulary, and cognitive abilities?","d":"Principle of Appropriateness."},{"t":"Which principle states technology must provide accurate, current, and reliable real-world information?","d":"Principle of Authenticity."},{"t":"According to Bertalanffy (1968), what is a set of elements standing in interrelation among themselves?","d":"A system."},{"t":"What are the three main aspects of a system?","d":"Multiple Elements, Interaction Over Time, and Bounded Whole in an Environment."},{"t":"Who was one of the first to apply a systems approach to education in 1972?","d":"Roger Kaufman."},{"t":"What level of the education system involves the teaching process, learning process, and media development?","d":"Micro-level."},{"t":"What is an example of an input in an education system?","d":"Pupils, administration, teachers, material."},{"t":"What mechanism keeps an instructional system stable (Feedback Principle)?","d":"Dynamic feedback mechanisms (like assessments)."},{"t":"What textbook by John Amos Comenius (1658) was the first widely used children's textbook with pictures?","d":"Orbis Sensualium Pictus."},{"t":"What stage of EdTech development included lantern slides and silent movies?","d":"Visual Instruction (19th & 20th Century)."},{"t":"What does CAI stand for?","d":"Computer-Assisted Instruction."},{"t":"What prominent 1960s CAI system was created at the University of Illinois?","d":"PLATO."},{"t":"What limitation of CAI prevents it from modifying teaching pathways when students are confused?","d":"Static Studying Procedure."},{"t":"What does ICAI stand for?","d":"Intelligent Computer-Assisted Instruction."},{"t":"What was the first influential ICAI system developed in 1970 to teach South American geography?","d":"SCHOLAR."},{"t":"What does ITS stand for?","d":"Intelligent Tutoring Systems."},{"t":"Which ITS component catalogs common student \"bugs\" or misconceptions?","d":"Domain Model (Expert Knowledge Base)."},{"t":"Which ITS component continuously tracks the student's knowledge using knowledge tracing?","d":"Learner Model (Student Profile)."},{"t":"Which ITS component determines \"what to do next\" by selecting instructional strategies?","d":"Pedagogical Model (Instructional Engine)."},{"t":"Which ITS component interprets inputs (typing, speech) and delivers multimodal outputs?","d":"Interface Model."},{"t":"What 1997 real-world system simulates human tutoring through natural language dialogues and animated agents?","d":"Auto Tutor."},{"t":"In what era did Intelligent Tutoring Systems (ITS) emerge?","d":"1990s to Present."},{"t":"What was the pedagogy behind CAI systems?","d":"Behaviorism / Programmed instruction."}],"IKM":[{"t":"How does UNESCO (2011) define culture?","d":"As a \"set of distinctive spiritual, material, intellectual, and emotional features of society or a social group.\""},{"t":"What encompasses art, literature, lifestyles, ways of living together, value systems, traditions, and beliefs?","d":"Culture."},{"t":"What does culture in the plural refer to?","d":"The creative diversity embodied in particular \"cultures,\" including unique traditions and tangible/intangible expressions."},{"t":"What does culture in the singular refer to?","d":"The creative impulse that lies at the very heart of the diversity of \"cultures.\""},{"t":"What is the idea that the human species is divided into distinct groups based on inherited physical and behavioral differences?","d":"Race."},{"t":"Did genetic studies in the late 20th century support the existence of biogenetically distinct races?","d":"No, they refuted the existence of biogenetically distinct races."},{"t":"How do scholars now view the concept of \"races\"?","d":"As cultural interventions reflecting specific attitudes imposed on populations following Western European conquests."},{"t":"What is a grouping of humans based on people who identify with each other on the basis of shared attributes?","d":"An ethnic group or ethnicity."},{"t":"What is defined simply as the differences between people?","d":"Diversity."},{"t":"What term describes the qualities, beliefs, personality, looks, and expressions that make a person or group?","d":"Identity."},{"t":"What type of identity relates specifically to self-image, self-esteem, and individuality?","d":"Psychological identity."},{"t":"What is the movement of people from one place in the world to another?","d":"Migration."},{"t":"Who is any person moving across an international border or within a State away from their habitual residence?","d":"A migrant."},{"t":"What is moving within a state, country, or continent called?","d":"Internal migration."},{"t":"What is moving to a different state, country, or continent called?","d":"External migration."},{"t":"What is the term for leaving one country to move to another?","d":"Emigration."},{"t":"What is moving into a new country called?","d":"Immigration."},{"t":"What type of migration involves moving back to where you came from?","d":"Return migration."},{"t":"What type of migration involves moving with each season or in response to labor/climate conditions?","d":"Seasonal migration."},{"t":"Who is a person that has moved to a new country specifically because of a problem in their former home?","d":"A refugee."},{"t":"Who coined the term transculturalism in 1940?","d":"Fernando Ortiz."},{"t":"Why did Fernando Ortiz coin transculturalism?","d":"To describe cultural encounters within Cuban society as a proper substitute for the term \"acculturation.\""},{"t":"With which philosopher is the prominent reappearance of transculturalism in the 1990s associated?","d":"Wolfgang Welsch."},{"t":"What concept refers to the active support for cross-cultural dialogue and challenging self-segregation tendencies?","d":"Interculturalism."},{"t":"How does interculturalism differ from multiculturalism?","d":"It moves beyond passive acceptance to actively promote dialogue and interaction between cultures."},{"t":"What is defined as fairness or justice according to natural law or right, specifically meaning freedom from bias?","d":"Equity."},{"t":"What is the maintenance or administration of what is just, especially achieved by impartial adjustment of conflicting claims?","d":"Justice."},{"t":"What is the quality of trying to include many different types of people and treat them all fairly and equally?","d":"Inclusivity."},{"t":"What term describes the co-existence of diverse cultures manifested in customary behaviors and patterns of thinking?","d":"Multiculturalism."},{"t":"Through existing at an intersection of culture, education, and community, what do libraries become?","d":"A hub for fostering cross-cultural dialogue and active citizenship."},{"t":"According to the IFLA/UNESCO Manifesto, libraries function as what three types of centres?","d":"Learning, cultural, and information centres."},{"t":"According to multicultural principles, what should libraries provide information in?","d":"Appropriate languages and scripts."},{"t":"What must library staff reflect to address cultural and linguistic diversity?","d":"The diversity of the community."},{"t":"Which groups should receive special attention because they are often marginalized in culturally diverse societies?","d":"Minorities, asylum seekers/refugees, temporary residents, migrant workers, and indigenous communities."},{"t":"What type of heritage should multicultural library services safeguard and give support to?","d":"Linguistic and cultural heritage."},{"t":"What kind of traditional heritage should libraries support the preservation of?","d":"Oral tradition and intangible cultural heritage."},{"t":"In terms of management, what approach expects all types of libraries to adopt an integrated service?","d":"An integrated service approach where core activities are central, not \"separate\" or \"additional.\""},{"t":"What must a multicultural library's strategic plan be based on?","d":"A comprehensive user needs analysis and adequate resources."},{"t":"Why is research needed for multicultural library services?","d":"To obtain the data necessary to make informed service decisions and secure appropriate funding."},{"t":"What does IFLA stress regarding the need to consider indigenous traditional knowledge?","d":"The need to consider this knowledge holistically, in spite of contested conceptual definitions."},{"t":"Why is indigenous traditional knowledge considered vulnerable?","d":"Because it is exploitable, due to the loss of Elders, and a decline in transmission to younger generations."},{"t":"What convention is mentioned for implementing effective mechanisms for technology transfer and protection?","d":"The Convention on Biological Diversity and the ILO Convention 169."},{"t":"Does IFLA recognize that indigenous traditional knowledge always lends itself to print or electronic recording?","d":"No, it recognizes that its character does not always lend itself to print, electronic, or audiovisual means."},{"t":"Who should be involved in the production of resources and in teaching children about traditional knowledge?","d":"Elders and communities."},{"t":"What does IFLA urge governments to ensure exemption from for books on indigenous traditional knowledge?","d":"Value added taxes (VAT)."},{"t":"Is Indigenous Knowledge an abstract theory?","d":"No, it is a factual observation and a collective repository of adaptability."},{"t":"How is Indigenous Knowledge primarily transmitted?","d":"Passed orally through storytelling, rituals, folklore, and songs."},{"t":"What threat to traditional wisdom occurs as details fade from verbal transmission?","d":"Dilution over time."},{"t":"What threat occurs when the older generation passes away with unrecorded wisdom?","d":"Loss of original elders."},{"t":"What threat occurs when traditional methods for survival are abandoned for modern conveniences?","d":"Replacement by modern tech."},{"t":"How do libraries intervene using legal frameworks and IP rights?","d":"They help indigenous communities legally copyright and protect their traditional knowledge."},{"t":"What library intervention involves training staff on specific rules and protocols of the indigenous community?","d":"Cultural sensitivity training."},{"t":"What is the primary barrier to integrating Indigenous Knowledge?","d":"It is philosophical, not technological (The Epistemological Divide)."},{"t":"How is the Western Scientific Paradigm described?","d":"Empirical & quantifiable, reductionist methodologies, written documentation."},{"t":"How are Indigenous Knowledge Systems described?","d":"Holistic & relational, observational across generations, oral traditions, deep spiritual connection to the land."},{"t":"In the library as a vital mediator model, what represents the dual outcome of repatriating knowledge?","d":"Destination (The World)."},{"t":"What is the first step in the Knowledge Stewardship Cycle?","d":"Acquire."},{"t":"In the Knowledge Stewardship Cycle, what does \"Secure\" refer to?","d":"Implementing data protection and strict ethical compliance."},{"t":"In the Ethical Acquisition Funnel, what is the Top Filter?","d":"Community Engagement."},{"t":"What does FPIC stand for in the Ethical Acquisition Funnel?","d":"Free, Prior, and Informed Consent."},{"t":"What is the Bottom Filter in the Ethical Acquisition Funnel?","d":"Cultural Protocols."},{"t":"What output is produced when knowledge is formally tagged with culturally sensitive metadata?","d":"Ethical Architecture."},{"t":"What principles focus on maximizing data sharing and open education?","d":"FAIR Principles (Findable, Accessible, Interoperable, Reusable)."},{"t":"What principles focus on indigenous data governance and protection?","d":"CARE Principles (Collective Benefit, Authority to Control, Responsibility, Ethics)."},{"t":"In the Dissemination Spectrum, what level involves shared selectively in class activities and public storytelling?","d":"Educational Contexts."},{"t":"In the Dissemination Spectrum, what level handles sacred artifacts and rituals kept offline?","d":"Highly Restricted."},{"t":"In the Integration Hurdle Model, what is Hurdle 1?","d":"Colonial Legacy (Deep-seated power imbalances)."},{"t":"In the Integration Hurdle Model, what is Hurdle 2?","d":"Practical & Language Barriers."},{"t":"In the Integration Hurdle Model, what is Hurdle 3?","d":"Operational Constraints."},{"t":"What act requires redesigning information systems to reflect Indigenous protocols and returning control to the community?","d":"Decolonizing the Archive."},{"t":"When and where was the iPortal Architecture established?","d":"In 2005 at the University of Saskatchewan."},{"t":"What localized hub was created by the National Library of the Philippines for Indigenous peoples?","d":"The Barangay Reading Center (BRC)."},{"t":"What digital counterpart platform supports traditional knowledge digital preservation in the Philippines?","d":"TKDL (Traditional Knowledge Digital Library)."},{"t":"What are examples of Traditional Methods used by librarians to bridge the knowledge gap?","d":"Physical exhibits, live storytelling, and cultural sensitivity training."},{"t":"What are examples of Technological Methods used by librarians to bridge the knowledge gap?","d":"Social media (YouTube, Twitter), live broadcasts, and OPACs."},{"t":"In multicultural literature, what reflects the reader's own life and reinforces distinct cultural identity?","d":"The Mirror."},{"t":"In multicultural literature, what allows the reader to peer into the lives of others?","d":"The Window."},{"t":"In multicultural literature, what is the harmful exclusion of a child's culture called?","d":"The Void."},{"t":"What term is descriptive, defining the customary beliefs, social forms, and material traits of a group?","d":"Cultural Diversity."},{"t":"What term is prescriptive, defining the institutional policy of giving equal attention to all groups?","d":"Multiculturalism."},{"t":"What are the four Core Missions of the Multicultural Library?","d":"Promoting Awareness, Supporting Inclusion, Linguistic Diversity, and Preservation."},{"t":"What approach confines cultural exploration to heritage months and reinforces stereotypes?","d":"The Tourist Approach."},{"t":"What are the \"5 Fs\" of the Tourist Approach?","d":"Food, Festivals, Folklore, Fashion, Famous People."},{"t":"What type of programs require routine inclusion year-round, focusing on social justice and equality?","d":"Culturally Responsive Programs."},{"t":"In the Cultural Competency Loop, what makes visitors feel instantly represented?","d":"Workforce Diversity."},{"t":"In the Cultural Competency Loop, what guards against stereotyping in service and cataloguing?","d":"Self-Awareness."},{"t":"How many ethnolinguistic groups are there in the Philippine context?","d":"Over 100."},{"t":"In Philippine libraries, what safeguards memory by offering books, manuscripts, and maps created by or about Filipinos?","d":"Filipiniana & Local Heritage."},{"t":"What initiative requires empathy and breaking stereotypes through direct human connection?","d":"DLSU Human Library."},{"t":"In the DLSU Human Library, who are \"The Books\"?","d":"Individuals from diverse backgrounds (e.g., indigenous peoples, LGBTQ+ members)."},{"t":"According to the 9 Dimensions of Inclusivity, what is dimension 1, where users feel \"You belong here\"?","d":"Belonging (Personal)."},{"t":"Which dimension provides safe spaces to explore sensitive or underrepresented ideas without judgment?","d":"Intellectual Freedom (Personal)."},{"t":"Which dimension of inclusivity involves removing physical/language barriers like ramps and braille?","d":"Fair Access (Community)."},{"t":"Which dimension involves targeted bridging to specific marginalized cultural and social groups?","d":"Reaching the Overlooked (Community)."},{"t":"Which dimension acknowledges that building inclusivity is a continuous, iterative process?","d":"Adaptation (Institutional)."},{"t":"What chasm do underrepresented groups face due to centuries of marginalization and physical inaccessibility?","d":"The Exclusion Chasm."},{"t":"What is a resolution for the roadblock of Resource Scarcity (Funding & Staff)?","d":"Investing in targeted staff development and partnering with local organizations."},{"t":"What is a resolution for the roadblock of Cultural Gaps?","d":"Providing anti-discrimination training to ensure respectful, informed service."},{"t":"What is a resolution for the roadblock of Community Resistance to Change?","d":"Actively listening to community feedback and collaborating directly with Indigenous leaders."},{"t":"In The Ecosystem of Belonging, what represents the foundational commitment to awareness, preservation, and cultural competence?","d":"The Lens (Multicultural Policy)."},{"t":"In The Ecosystem of Belonging, what represents the physical manifestation through Filipiniana and diverse collections?","d":"The Landscape (Diverse Collections)."},{"t":"In The Ecosystem of Belonging, what is the ultimate human outcome where fair access and equity create a society where every culture is valued?","d":"The Life (Total Inclusivity)."},{"t":"What is the idea that the human species is divided into distinct groups based on inherited physical/behavioral differences?","d":"Race."},{"t":"What is a group of humans who identify with each other based on shared attributes like tradition, language, or history?","d":"Ethnicity."},{"t":"What is the general state of being diverse or having a large variety of differences between people?","d":"Diversity."},{"t":"What relates specifically to self-image, self-esteem, and individuality?","d":"Psychological identity."},{"t":"What is internal migration?","d":"Moving within a state, country, or continent."},{"t":"What is a person called who enters a country from another to make a new home?","d":"Immigrant."},{"t":"Who is a person that moves to a new country specifically because of a problem in their former home?","d":"Refugee."},{"t":"Who coined the term \"transculturalism\" in 1940?","d":"Fernando Ortiz."},{"t":"What concept actively supports cross-cultural dialogue and challenges self-segregation tendencies?","d":"Interculturalism."},{"t":"What is defined as fairness or justice in the way people are treated (freedom from bias)?","d":"Equity."},{"t":"What is the practice of actively including people who might otherwise be excluded or marginalized?","d":"Inclusivity."},{"t":"What concept focuses on inclusiveness, understanding, respect, and looking critically at unequal power dynamics?","d":"Multiculturalism."},{"t":"According to the IFLA/UNESCO Manifesto, what three things do libraries function as?","d":"Learning, cultural, and information centres."},{"t":"What must libraries provide access to in order to address cultural and linguistic diversity?","d":"Information in appropriate languages and scripts."},{"t":"What should the staff of a multicultural library reflect?","d":"The cultural and linguistic characteristics of the community."},{"t":"What type of traditional heritage should libraries support the preservation of?","d":"Oral tradition and intangible cultural heritage."},{"t":"What is the core integrated service approach expected of a multicultural library?","d":"Services for culturally diverse communities are central, not \"separate\" or \"additional.\""},{"t":"Does IFLA recognize that indigenous traditional knowledge always lends itself to print or electronic recording?","d":"No, it acknowledges it does not always lend itself to print, electronic, or audiovisual means."},{"t":"How is Indigenous Knowledge primarily transmitted?","d":"Orally through storytelling, rituals, folklore, and songs."},{"t":"What causes the dilution of Indigenous Knowledge over time?","d":"It naturally fades, changes, or is forgotten because it is passed down verbally."},{"t":"What legal framework do libraries help indigenous communities establish to prevent corporations from stealing traditional knowledge?","d":"Intellectual Property (IP) rights and copyright."},{"t":"What is the primary barrier to integrating Indigenous Knowledge?","d":"It is philosophical, not technological (the epistemological divide)."},{"t":"How does the Western Scientific Paradigm view methodology compared to Indigenous Knowledge?","d":"Western is empirical, quantifiable, and reductionist; Indigenous is holistic, relational, and observational."},{"t":"What is the critical legal and ethical checkpoint in the Ethical Acquisition Funnel?","d":"Free, Prior, and Informed Consent (FPIC)."},{"t":"What principle focuses on indigenous data governance and protection?","d":"CARE Principles (Collective Benefit, Authority to Control, Responsibility, Ethics)."},{"t":"What principle focuses on maximizing data sharing and open education?","d":"FAIR Principles (Findable, Accessible, Interoperable, Reusable)."},{"t":"What is the \"iPortal Architecture\" established at the University of Saskatchewan in 2005 an example of?","d":"Proof of Concept for Decolonizing the Archive."},{"t":"In children's literature, what reflects the reader's own life and reinforces distinct cultural identity?","d":"The Mirror."},{"t":"What allows the reader to peer into the lives of others, promoting empathy and global awareness?","d":"The Window."},{"t":"What does the absence of a child's culture in literature (The Void) cause?","d":"It sends a damaging message that their identity is unimportant."},{"t":"What is the \"Tourist Approach\" to multiculturalism?","d":"Confining cultural exploration to heritage months and focusing only on the \"5 Fs.\""},{"t":"How many ethnolinguistic groups exist in the Philippine context?","d":"Over 100."},{"t":"What is the goal of the DLSU Human Library?","d":"Sharing lived experiences directly by turning human stories into accessible living literature."},{"t":"What is the first of the 9 Dimensions of Inclusivity?","d":"Belonging (Personal)."},{"t":"Which inclusivity dimension addresses removing physical/language barriers like ramps and braille?","d":"Fair Access (Community)."},{"t":"What is a major roadblock to implementing multicultural policies in libraries?","d":"Resource Scarcity (Funding & Staff)."},{"t":"How can libraries resolve the roadblock of \"Cultural Gaps\"?","d":"By providing anti-discrimination training."},{"t":"What is \"The Lens\" in the blueprint for a culturally pluralistic future?","d":"The foundational commitment to awareness, preservation, and cultural competence (Multicultural Policy)."},{"t":"What represents the physical manifestation of multiculturalism in a library (The Landscape)?","d":"Diverse Collections (Filipiniana, digitized indigenous knowledge, local languages)."},{"t":"Who are groups often marginalized in culturally diverse societies according to IFLA?","d":"Minorities, asylum seekers/refugees, residents with temporary permits, migrant workers, indigenous communities."},{"t":"What should libraries encourage in cyberspace according to multicultural missions?","d":"Linguistic diversity and universal access."},{"t":"What must a library's strategic plan be based on?","d":"A comprehensive user needs analysis and adequate resources."},{"t":"What type of training should library staff receive for multicultural services?","d":"Cross-cultural communication, sensitivity, anti-discrimination, cultures, and languages."},{"t":"What does IFLA urge governments to exempt from VAT?","d":"Books and other recording media on indigenous and local traditional knowledge."},{"t":"What is the \"Bottom Filter\" in the Ethical Acquisition Funnel?","d":"Cultural Protocols (community rules on who can view the knowledge)."},{"t":"What is the ultimate outcome of \"The Life\" ecosystem in libraries?","d":"Total Inclusivity where fair access, equity, and intellectual freedom create a society where every culture is valued."}],"Indexing":[{"t":"What was the medium used by ancient and medieval ages for record keeping before printing?","d":"Clay tablets and manuscripts."},{"t":"What civilization first systematically organized written records around 3000 B.C.?","d":"Sumerians."},{"t":"What medium was used for systematic organization of written records by Sumerians?","d":"Clay tablets and papyrus."},{"t":"How did China and India keep records around 2000 B.C.?","d":"In a Tablet Roll."},{"t":"What ancient official letter was written in the 3rd century BCE?","d":"An official letter written on Papyrus."},{"t":"What section of the Egyptian Book of the Dead was recorded for early knowledge?","d":"A section written on papyrus."},{"t":"What text lists the victories of the King of Akkad?","d":"List of the Victories of Rimush."},{"t":"Who did Rimush, King of Akkad, defeat according to his list of victories?","d":"Rulers like Abalgamash and Emahsini."},{"t":"What script were numbers written in on the Babylonian Plimpton 322 Clay tablet?","d":"Cuneiform script."},{"t":"What early schemes were proposed by civilizations to solve retrieval problems due to the growth of stored information?","d":"Schemes of knowledge classification and document arrangement."},{"t":"What did forerunners of indexes include on the margins of books?","d":"Paragraph headings."},{"t":"Besides paragraph headings, what else did forerunners of indexes include?","d":"Chapter headings and contents lists."},{"t":"What technique for intellectual discourse was developed in European universities?","d":"Alphabetical indexing."},{"t":"What Latin phrase meaning \"list of a book's contents\" was first attested in the 1570s?","d":"Index Nominum."},{"t":"In the 14th century, how were index entries roughly arranged?","d":"Alphabetically."},{"t":"In the 14th century, how were the majority of lists of sentences arranged?","d":"In order of catchword."},{"t":"In early indexes, what was used to locate info and provide clues to users?","d":"Keyword, key terms, or headings."},{"t":"In the 14th century, how common was the use of subject headings?","d":"Their use was uncommon."},{"t":"How was an index derived from the text in the 14th century?","d":"It was taken verbatim from the text and placed in front of the document."},{"t":"What century saw the appearance of concordances to the Bible and subject indexes to canonical law?","d":"15th Century."},{"t":"What did headwords and marginal references serve as in some 15th-century manuscripts?","d":"Guides to the text."},{"t":"Indexes to what kind of texts aided developments in medicine in the era of printed books?","d":"Medical texts and herbals."},{"t":"Why did the invention of printing around 1450 lead to the compilation of the first indexes?","d":"It made it possible to produce identical copies of books in large numbers."},{"t":"What type of books specifically had indexes compiled first after the invention of printing?","d":"Books of reference such as herbals."},{"t":"When was the first Biblical concordance published?","d":"1544."},{"t":"Which 1590s book had several fascinating indexes according to Hilary Calvert?","d":"The Gerardes Herbal."},{"t":"When did full alphabetization become the rule for indexes?","d":"By the 18th century."},{"t":"What new type of information tool brought new indexing needs in the 17th century?","d":"The periodical."},{"t":"Who prepared the first complete concordance of the Bible in 1737?","d":"Alexander Cruden."},{"t":"How many professional indexers did Samuel Johnson employ to assist him with his dictionary?","d":"Six professional indexers."},{"t":"What year did the modern history of indexing begin?","d":"1848."},{"t":"What did the People's index to periodical Literature (1882) create subject entries from?","d":"Keywords in the titles of the articles indexed."},{"t":"Who founded the International Institute of Bibliography to improve indexing approaches to scholarly literature?","d":"Paul Otlet and Henry La Fontaine."},{"t":"What indexing approaches did the International Institute of Bibliography lead to?","d":"Modern keyword and free text indexing."},{"t":"Who published an index covering numerous issues of many periodicals in 1950?","d":"W.F. Poole."},{"t":"In what year was the first separate Index Volume of Encyclopedia Britannica published?","d":"1874."},{"t":"Who was the secretary of The Index Society formed in London in 1878?","d":"Henry Wheatley."},{"t":"Who is the Wheatley Medal named after?","d":"Dr. Henry Benjamin Wheatley."},{"t":"What society was formed in Great Britain as women began to enter the indexing field?","d":"Society of Indexers."},{"t":"In the 20th Century, what did the Reader's Guide to Periodical Literature place emphasis on?","d":"Subject access and useful cross references."},{"t":"Who published the Reader's Guide to Periodical Literature?","d":"W.H. Wilson."},{"t":"What does KWIC stand for?","d":"Keyword in context."},{"t":"What indexing system was developed by Calvin Mooers?","d":"Zatacoding."},{"t":"Who developed the \"uniterm system\"?","d":"Mortimer Taube."},{"t":"What kind of language uses any indexing word or term that suits the subjects?","d":"Free Indexing Language."},{"t":"What does NEPHIS stand for?","d":"Nested Phrase Indexing Systems."},{"t":"Who began the Universal Bibliographic Repertory?","d":"Paul Otlet."},{"t":"By 1914, how many entries did the Universal Bibliographic Repertory contain?","d":"Over eleven million entries."},{"t":"What were the entries in the Universal Bibliographic Repertory backed by?","d":"Text files and illustrations."},{"t":"When was the American Society of Indexers founded?","d":"1968."},{"t":"When was the Australian Society of Indexers founded?","d":"1976."},{"t":"What society was founded in Canada in 1977?","d":"Indexing and Abstracting Society of Canada."},{"t":"When was the China Society of Indexers founded?","d":"1991."},{"t":"When was the Association of South African Indexers and Bibliographers founded?","d":"1994."},{"t":"In what decade did computers penetrate the indexing arena?","d":"1950s."},{"t":"What does ISBD stand for?","d":"International Standard Bibliographic Description."},{"t":"How many types of record formats does ISBD currently cover?","d":"8 types."},{"t":"Where is the National Library of Medicine located?","d":"States of Maryland."},{"t":"What century-old medical index acts as a subject/author guide to articles?","d":"Index Medicus."},{"t":"What is the process of analyzing content, expressing aboutness in abbreviated form, and indicating location?","d":"Indexing."},{"t":"What is the person who does the indexing called?","d":"Indexer."},{"t":"What serves as a document surrogate with an adequate bibliographic description?","d":"Abstract."},{"t":"What involves the processes and procedures of searching for documents, images, data, or personal information from information stores?","d":"Information Retrieval."},{"t":"What is the freedom or ability to identify, obtain, make use of databases or information for one's own development?","d":"Information Access."},{"t":"According to Kowalski and Maybury (2002), what is an Information Retrieval System capable of?","d":"Storage, retrieval, and maintenance of information."},{"t":"According to Manning's definition, what consists of browsing or filtering document collections?","d":"Information Retrieval for indexers."},{"t":"What is the grouping of documents based on their contents called?","d":"Clustering."},{"t":"What are the three primary processes of an Information Retrieval System?","d":"Indexing, Storing, Retrieving."},{"t":"What process involves information items being stored in a physical or electronic repository?","d":"Storing."},{"t":"What process involves obtaining information items through interaction with the system?","d":"Retrieving."},{"t":"How are user queries matched against records in computer-based systems?","d":"Typically using Boolean operators."},{"t":"What failure in searching occurs when the user finds no resources of information?","d":"Partial Failures in Searching."},{"t":"What are the basic elements of an index?","d":"Index Heading, Subheading, Qualifier, Scope note, Locator."},{"t":"What index element is a secondary term placed under a main heading?","d":"Subheading."},{"t":"Which index element uses parentheses to distinguish terms spelled the same but with different meanings?","d":"Qualifier."},{"t":"What index element directs the user to page numbers or sections?","d":"Locator."},{"t":"What is one of the main purposes of indexes for searchers and indexers?","d":"To match the vocabulary used by the searcher with the vocabulary chosen by the indexer."},{"t":"What type of index arranges its contents according to relationships like hierarchy or chronology?","d":"Classified Index."},{"t":"What tool compiles an alphabetical index of all the key words found in a single text?","d":"Concordance."},{"t":"What event made the importance of indexes evident to the general public?","d":"The English Bible was made accessible to the general public."},{"t":"What type of index organizes entries by numbers or a sequence (e.g., patent-number indexes)?","d":"Numerical or Serial Order."},{"t":"What type of index is typically found at the back of a book?","d":"Book Index."},{"t":"What is the main subdivision within an index called?","d":"Entry."},{"t":"What appears as the top line in an entry?","d":"Heading."},{"t":"What is an indented line beneath the heading that highlights a specific detail?","d":"Subentry or subheading."},{"t":"What navigational tool within the index uses terms such as \"see\" and \"see also\"?","d":"Cross-reference."},{"t":"What type of index covers varied, unrelated topics written by multiple authors and has a broader scope?","d":"Periodical Index."},{"t":"What type of index faces challenges because articles often include names or places that might not appear again?","d":"Newspaper Index."},{"t":"Why is consistent vocabulary control difficult in newspaper indexes?","d":"Because names, places, or subjects might not appear again."},{"t":"What type of index requires textual labeling combined with image matching or speech recognition?","d":"Index to audio-visual materials."},{"t":"What technology retrieves specific television news segments by generating searchable transcripts?","d":"Speech recognition technology."},{"t":"What publication lists stories found in both books and periodicals with entries by author, title, and subject?","d":"Short Story Index."},{"t":"What index provides entries for individual plays and collections of plays?","d":"Play Index."},{"t":"What feature in Play Index assists librarians in selecting plays based on the number of performers required?","d":"Cast analysis."},{"t":"What is another name for an index to poems?","d":"First-line index."},{"t":"The Columbia Granger's Index to Poetry provides access to over how many poems?","d":"Over 40,000 poems."},{"t":"What index features detailed subject entries analyzing the contents of about 300 collected works on topics from art to medicine?","d":"Essay and General Literature Index."},{"t":"What physical form of an index uses traditional catalogs?","d":"Card indexes."},{"t":"What physical form of an index contains indexer's markings on the items through bibliographic worksheets?","d":"Printed indexes."},{"t":"What type of index provides access to information on documents cited by the author's name in the indexed document?","d":"Author index."},{"t":"What does the Latin word \"indicare\" mean?","d":"To point out."},{"t":"What is the meaning of \"Index\"?","d":"A \"forefinger, pointer, sign, list\" or \"anything which points out.\""},{"t":"When did the Sumerians first systematically organize written records on clay tablets?","d":"Around 3000 B.C."},{"t":"In what format did China and India keep records around 2000 B.C.?","d":"Tablet Roll."},{"t":"Where is the Sumerian Clay Tablet currently housed?","d":"Oriental Institute, University of Chicago."},{"t":"Who is the first author whose name is recorded in clay tablets?","d":"Enheduanna (a priestess)."},{"t":"What text was inscribed by Enheduanna?","d":"The poem Inanna and Ebih."},{"t":"What does the Babylonian Plimpton 322 Clay tablet list?","d":"Pythagorean triples."},{"t":"What did early civilizations propose to solve retrieval problems due to the growth of stored information?","d":"Schemes of knowledge classification and document arrangement."},{"t":"What were early indexes primarily limited to?","d":"Personal names, titles of works, and occurrences of words in the text."},{"t":"What technique was developed for intellectual discourse in European universities?","d":"Alphabetical indexing."},{"t":"In what century did the roughly alphabetical arrangement of index entries first appear?","d":"14th Century."},{"t":"What invention around 1450 made it possible to produce identical copies of books?","d":"The printing press."},{"t":"Which century witnessed the advent of professional indexers?","d":"18th Century."},{"t":"Who published a famous Dictionary of the English Language in 1755 using 6 professional indexers?","d":"Samuel Johnson."},{"t":"Who introduced the idea of one index to many periodicals in 1848?","d":"William Frederick Poole."},{"t":"What did John Shaw Billings prepare in 1880?","d":"The first index for medical literature."},{"t":"Who founded the International Institute of Bibliography?","d":"Paul Otlet and Henry La Fontaine."},{"t":"What first published index did H.W. Wilson release in 1900?","d":"Reader's Guide to Periodical Literature."},{"t":"Who codified subject cataloging principles through his rules for a printed Dictionary Catalog in 1876?","d":"Charles Ammi Cutter."},{"t":"What society was formed in London in 1878 to create a general index of universal literature?","d":"The Index Society."},{"t":"Who introduced the mechanized form of derived title indexing known as KWIC (Keyword in Context)?","d":"Hans Peter Luhn."},{"t":"Who developed the indexing system known as Zatacoding?","d":"Calvin Mooers."},{"t":"Who developed the indexing technique called Bibliography Coupling?","d":"M.M. Kessler."},{"t":"Who developed the \"uniterm system\" or one concept term?","d":"Mortimer Taube."},{"t":"Who introduced the Nested Phrase Indexing Systems (NEPHIS)?","d":"Timothy C. Craven."},{"t":"Whose Cranefield Project is a landmark in evaluating the performance of indexing languages?","d":"C.W. Cleveron."},{"t":"Who designed and developed the Preserved Context Index System (PRECIS)?","d":"Derek Austin."},{"t":"Who introduced Chain Indexing?","d":"S.R. Ranganathan."},{"t":"What standard is used throughout the English-Speaking world for indexing?","d":"British Standard on Indexing (BS3700:1976)."},{"t":"What is the largest online bibliography database in the world?","d":"OCLC Online Union Catalog."},{"t":"What is the process of expressing the \"aboutness\" of an item in abbreviated form?","d":"Indexing."},{"t":"What is an abbreviated and accurate representation of the significant substance of a documentary unit?","d":"Abstract."},{"t":"What are the three primary processes of an Information Retrieval System?","d":"Indexing, Storing, and Retrieving."},{"t":"Which Boolean operator narrows a query by requiring more than one search term?","d":"AND."},{"t":"Which Boolean operator requires that either one or the other term may be included?","d":"OR."},{"t":"What element of an index is a term selected to represent a specific concept or item?","d":"Index Heading."},{"t":"What is a secondary term placed under a main heading to show a more specific aspect?","d":"Subheading."},{"t":"What is a word or phrase added to a heading in parentheses to distinguish terms spelled the same?","d":"Qualifier."},{"t":"What is a brief explanation attached to a heading to clarify the extent of the topic?","d":"Scope note."},{"t":"What is a reference that directs the user to the exact location (e.g., page numbers)?","d":"Locator."},{"t":"What is an alphabetical index of all the key words found in a single text called?","d":"Concordance."},{"t":"What indexing principle refers to how thoroughly concepts are made accessible through index terms?","d":"Exhaustivity."},{"t":"What indexing principle refers to representing a concept using the most precise term available?","d":"Specificity."},{"t":"What rule dictates that a subject heading should cover all concepts addressed, but nothing beyond?","d":"Coextensive Entry."},{"t":"What is a standardized set of terms used to ensure consistency in indexing called?","d":"Controlled Vocabulary."},{"t":"What term relationship does \"BT\" represent in indexing?","d":"Broader Term."}],"LMCYA":[{"t":"Target groups coming into the children's library include whom?","d":"Babies/Toddlers, Pre-school children, Elementary children, Older Children, Young people with difficulties, Parents, and Families."},{"t":"What is a goal for the libraries of the world regarding children's access to the internet?","d":"That children can access the internet as freely as possible."},{"t":"What is the maximum recommended height for shelves in the children's section?","d":"1.5 metres."},{"t":"What term describes furnishing that supports communication among children in the library?","d":"Social Furnishing."},{"t":"What must be avoided to ensure the children's library is a safe place?","d":"Any risk of accidents, such as staircases or sharp edges of shelves."},{"t":"What is the recommended popular ratio of fiction to informational materials?","d":"Roughly 60% fiction to 40% informational."},{"t":"What is the best way of achieving a successful budget proposal for the children's library?","d":"Prepare an annual report on what is required."},{"t":"What type of knowledge do librarians need that includes reading development theory and child psychology?","d":"Professional Knowledge."},{"t":"How does a library evaluate services to measure actual success?","d":"Using concrete data like foot traffic, computer availability, and user surveys."},{"t":"What is the purpose of library literature for children regarding narrative structures?","d":"To cultivate reading comprehension and long-term reading habits."},{"t":"What does Young Adult (YA) library literature refer to?","d":"Materials selected and provided by libraries for teenagers and adolescents."},{"t":"What were the earliest forms of youth library materials designed to instill obedience?","d":"Hornbooks, primers, and religious tracts."},{"t":"During which century did children begin to come into their own regarding literature suited to their needs?","d":"18th Century."},{"t":"Who began printing books specifically designed to entertain alongside instructing the young in England?","d":"John Newbery."},{"t":"What is the earliest public library with a collection explicitly dedicated to children (1803)?","d":"Bingham Library for Youth."},{"t":"Who established the Bingham Library for Youth?","d":"Caleb Bingham."},{"t":"In what decade did librarians begin providing direct, personal service to children and formalizing their expertise?","d":"Late 1880s."},{"t":"When did the American Library Association form its first children's librarian division?","d":"1900."},{"t":"Which prestigious children's literature accolade was established in 1921?","d":"The Newbery Medal."},{"t":"Which library opened the first special young people's room in 1925?","d":"The Cleveland Public Library."},{"t":"What was the first special young people's room called?","d":"The Stevenson Room."},{"t":"Who used international children's books to foster cross-cultural healing and empathy, creating the International Youth Library?","d":"Jella Lepman."},{"t":"In the pre-colonial era in the Philippines, how was literature for children passed down?","d":"Orally and by word of mouth."},{"t":"What is a Tagalog lullaby that expresses a mother's wishes to share the child's glory and pride?","d":"Panghehele."},{"t":"What is an Ilongot lullaby showing a father's hopes, fears, and doubts?","d":"Baliwayway."},{"t":"What was the first book for children in the Philippines, published in 1593?","d":"Doctrina Christiana en Lengua Tagala Espanola."},{"t":"What book replaced the native alibata with Roman alphabets in the Philippines?","d":"Cartilla (Cat\u00f3n or Abecedario)."},{"t":"Who translated five fairy tales by Hans Christian Andersen into Tagalog in 1886?","d":"Jose Rizal."},{"t":"Who wrote under the pen name \"Lola Basyang\" in 1925?","d":"Severino Reyes."},{"t":"What was the first comic book in the Philippines, published in 1946?","d":"Halakhak."},{"t":"Who organized the Children's Literature Association of the Philippines, Inc. (CLAPI) in 1966?","d":"Ceres Alabado."},{"t":"What was the Philippine version of the American children's television show Sesame Street initially called?","d":"Calle Sesame (later Batibot)."},{"t":"Whose theory states that children move through distinct stages of thinking and understanding?","d":"Jean Piaget's Cognitive Development Theory."},{"t":"What is Piaget's stage from birth to 2 years called?","d":"Sensorimotor Stage."},{"t":"What is Piaget's stage for ages 2 to 7 where toddlers start using language to express themselves?","d":"Preoperational Stage."},{"t":"What is Piaget's stage for ages 12 and up involving abstract thinking?","d":"Formal Operational Stage."},{"t":"Whose theory defines the Zone of Proximal Development (ZPD)?","d":"Lev Vygotsky."},{"t":"What theory argues that unconscious desires and childhood experiences heavily shape adult behavior?","d":"Sigmund Freud's Psychosexual Developmental Theory."},{"t":"What stage in Freud's theory focuses on bodily control and toilet training?","d":"Anal Stage."},{"t":"What theory states children learn primarily by watching and imitating others?","d":"Albert Bandura's Social Learning Theory."},{"t":"Whose theory states human behaviors like crying and clinging are biologically programmed into infants?","d":"John Bowlby's Attachment Theory."},{"t":"According to Bowlby, what phase occurs from 6 months to 2 years where infants display separation anxiety?","d":"Clear-cut attachment."},{"t":"What theory states fundamental needs must be satisfied before successfully moving to higher psychological needs?","d":"Maslow's Hierarchy of Needs."},{"t":"Whose theory features the Microsystem, Mesosystem, Exosystem, Macrosystem, and Chronosystem?","d":"Urie Bronfenbrenner's Ecological Systems Theory."},{"t":"In Bronfenbrenner's theory, what system includes predictable transitions, unpredictable events, and historical events?","d":"Chronosystem."},{"t":"What is the 6th stage of Erikson's psychosocial development theory covering ages 19 to 40?","d":"Intimacy and Isolation."},{"t":"Whose theory defines Emerging Adulthood between ages 18 and 29?","d":"Jeffrey Jensen Arnett."},{"t":"What is the principle that human characteristics are malleable in the Life-span Development Theory?","d":"Plastic."},{"t":"Who developed the Life-span Development Theory?","d":"Paul Baltes."},{"t":"What type of library reading material includes timeless stories touching on universal human experiences?","d":"Classics."},{"t":"Who originally created the fable \"The Boy who cried wolf\" in the 5th Century?","d":"Aesop."},{"t":"Who originally wrote The Adventures of Pinocchio in 1880?","d":"Carlo Lorenzini."},{"t":"What classic fairy tale's roots trace back to a 1022 Latin manuscript poem?","d":"Little Red Riding Hood."},{"t":"Who translated Aladdin and the Wonderful Lamp into French?","d":"Antoine Galland."},{"t":"What nursery rhyme term originally referred to a drink of boiled ale and brandy in the 17th century?","d":"Humpty Dumpty."},{"t":"What historical king does a popular theory suggest Humpty Dumpty represents?","d":"King Richard III."},{"t":"What nursery rhyme was originally published in 1910 as an adult song called \"The Spider Song\"?","d":"Itsy Bitsy Spider."},{"t":"What format is essential for reading development by reinforcing phonemic awareness, phonics, and fluency?","d":"Audiobooks."},{"t":"What contemporary fiction book by R.J. Palacio follows a boy with a facial difference?","d":"Wonder (2012)."},{"t":"What Philippine fiction book by Augie Rivera features a young girl coping with her mother's imprisonment during Martial Law?","d":"Isang Harding Papel (2015)."},{"t":"What picture book by Drew Daywalt teaches perspective-taking through a crayon strike?","d":"The Day the Crayons Quit (2013)."},{"t":"What Philippine picture book highlights community resilience using mismatched slippers?","d":"Pitong Tsinelas (2019)."},{"t":"What YA non-fiction book explores the impact of a teen setting an agender teen's skirt on fire?","d":"The 57 Bus (2017)."},{"t":"What YA fiction book by Stephen Chbosky navigates adolescent mental health through letters?","d":"The Perks of Being a Wallflower (1999)."},{"t":"What YA fiction book by Angie Thomas balances adolescent challenges with social justice activism?","d":"The Hate U Give (2017)."},{"t":"What Philippine YA book by Cristina Pantoja-Hidalgo follows Trissy in the 1950s-1960s?","d":"Catch a Falling Star (1999)."},{"t":"What YA book by Randy Ribay investigates a cousin's death in the Philippine drug war?","d":"Patron Saints of Nothing (2019)."},{"t":"What is the structured, professional approach to determining which materials should be included in a library collection?","d":"Selection."},{"t":"What ensures clear standards to filter out poorly written or biased materials in the library?","d":"Criteria-Based Selection."},{"t":"What is one of the four distinct criteria used to evaluate materials for slow or reluctant learners?","d":"Visual Impact (also Selection, Reinforcement, Segmented Learning)."},{"t":"What selection tool is written by experts and critically evaluates books?","d":"Professional Book Reviews."},{"t":"What curated, organized lists of books group titles by subject, age, genre, or theme?","d":"Bibliographies."},{"t":"What lists identify books that have received official recognition for excellence from professional organizations?","d":"Award and Notable Book Lists."},{"t":"Why should librarians never rely solely on publisher catalogs for selection?","d":"Because descriptions may be biased for marketing and promoting their own books."},{"t":"What digital platforms help librarians discover and evaluate potential materials without physically examining them?","d":"Online Review and Bibliographic Resources."},{"t":"What is the right of every individual to seek and receive information from all points of view without restriction?","d":"Intellectual freedom."},{"t":"What is the practice of limiting or removing access to words, images, or ideas deemed inappropriate?","d":"Censorship."},{"t":"What occurs when a library worker intentionally ignores collection policy and chooses not to select materials based on personal beliefs?","d":"Self-Censorship (or \"quiet censorship\")."},{"t":"What is an attempt to have a library resource removed based on objections called?","d":"A Challenge."},{"t":"What is the actual removal of materials from a library based on objections called?","d":"A Ban."},{"t":"What framework by Dr. Rudine Sims Bishop explores how literature reflects and opens human experiences?","d":"\"Mirrors, Windows, and Sliding Glass Doors\"."},{"t":"In Bishop's framework, what offers views of worlds that may be real, imagined, familiar, or strange?","d":"Windows."},{"t":"In Bishop's framework, what reflects human experience back to us, acting as a means of self-affirmation?","d":"Mirrors."},{"t":"How does a lack of racial/ethnic diversity in literature impact children's identity?","d":"It damages identity and self-worth, leaving children feeling excluded and invisible."},{"t":"What recognizes different cultures and is supported by providing materials that represent different traditions?","d":"Multiculturalism."},{"t":"The 2020 Census reported which language as the most widely spoken at home in the Philippines?","d":"Tagalog."},{"t":"What is an internal sense of who one is, resulting from biological traits and environmental influences?","d":"Gender Identity."},{"t":"At what age do children generally have a stable sense of their gender identity?","d":"By Age 4."},{"t":"Who developed the 3 stages of religious development in children?","d":"Ernest Harms."},{"t":"What is the first stage in Harms' religious development theory for ages 3-6?","d":"The Fairy Tale Stage."},{"t":"What is the second stage in Harms' religious development theory for ages 7-12?","d":"The Realistic Stage."},{"t":"What religious faith stage is common in adolescence where individuals adopt beliefs without deeply questioning them?","d":"Synthetic-Conventional Faith."},{"t":"What religious faith stage emerges in young adulthood driven by cognitive growth to own their worldview?","d":"Individuative-Reflective Faith."},{"t":"In 2021, what percentage of Filipino children lived below the poverty line?","d":"19.3%."},{"t":"What is the primary cause for dropping out of school for female youth in the Philippines?","d":"Marriage/family matters."},{"t":"What is a key difference in linguistics between Western and Philippine youth regarding education and libraries?","d":"Default Multilingualism in the Philippines vs. dominant language (English) in the West."},{"t":"What cultural dissonance do Filipino youth face when reading imported Western books?","d":"Reading about snow, autumn, and Western family structures that do not match their tropical, collectivist reality."},{"t":"What cultural orientation emphasizes family-centric and community-oriented networks in the Philippines?","d":"Collectivism (familism and bayanihan)."},{"t":"What structural barrier affects the library infrastructure for Filipino youth?","d":"A scarcity of public libraries, lack of dedicated youth librarians, and underfunded school libraries."},{"t":"Why is a \"one size fits all\" global approach inadequate for library programming in the Philippines?","d":"Professionals must prioritize indigenous literature and diversify collections to match the local sociocultural and economic realities."},{"t":"What is the term for furnishings that support communication among children in the library?","d":"Social Furnishing."},{"t":"What is the goal regarding children's access to the internet in world libraries?","d":"They can access it as freely as possible (while protecting them from inappropriate info)."},{"t":"What is the recommended popular ratio of fiction to informational materials for purchasing in children's libraries?","d":"Roughly 60% fiction to 40% informational."},{"t":"According to YALSA, what does YA literature enhance?","d":"Literacy and the developmental needs of young adults."},{"t":"What was the earliest public library (1803) with a collection explicitly dedicated to children?","d":"Bingham Library for Youth."},{"t":"Who began printing books designed to entertain alongside instructing the young in the 18th century?","d":"John Newbery."},{"t":"In what year did the American Library Association (ALA) form its first children's librarian division?","d":"1900."},{"t":"What prestigious children's literature accolade was established in 1921?","d":"The Newbery Medal."},{"t":"What library opened the first special young people's room, the Stevenson Room, in 1925?","d":"The Cleveland Public Library."},{"t":"Who created the International Youth Library in Munich?","d":"Jella Lepman."},{"t":"What is the first book for children in the Philippines, published in 1593?","d":"Doctrina Christiana en Lengua Tagala Espanola."},{"t":"What book replaced the native alibata with Roman alphabets for over 3 centuries?","d":"Cartilla (Cat\u00f3n or Abecedario)."},{"t":"Who translated five fairy tales by Hans Christian Andersen into Tagalog in 1889?","d":"Jose Rizal."},{"t":"What was the first comic book in the Philippines in 1946?","d":"Halakhak."},{"t":"What day is celebrated as National Children's Book Day in the Philippines?","d":"The third Tuesday of July."},{"t":"Whose theory breaks cognitive development into Sensorimotor, Preoperational, Concrete, and Formal stages?","d":"Jean Piaget."},{"t":"Which theory posits that children learn primarily by watching and imitating others?","d":"Albert Bandura's Social Learning Theory."},{"t":"What theory by John Bowlby states that human behaviors like crying and clinging are biologically programmed?","d":"Attachment Theory."},{"t":"What is the innermost environmental system in Urie Bronfenbrenner's Ecological Systems Theory?","d":"Microsystem."},{"t":"What is the 6th stage of Erikson's psychosocial theory, covering ages 19 to 40?","d":"Intimacy and Isolation."},{"t":"Who defined the Theory of Emerging Adulthood for ages 18-29?","d":"Jeffrey Jensen Arnett."},{"t":"Who developed the lifespan perspective of development (Life-span Development Theory)?","d":"Paul Baltes."},{"t":"What classic tale translated in 1484 has the moral lesson that earning a reputation as a liar means no one will believe you?","d":"The Boy who cried wolf."},{"t":"What tale was originally part of the Middle Eastern collection One Thousand and One Nights but set in China?","d":"Aladdin and the Wonderful Lamp."},{"t":"What historical king is Humpty Dumpty theorized to represent?","d":"King Richard III."},{"t":"What format is essential for reading development because hearing an expert reader exposes children to new vocabulary?","d":"Audiobooks."},{"t":"What framework by Dr. Rudine Sims Bishop explains how literature reflects human experiences and offers views into other worlds?","d":"\"Mirrors, Windows, and Sliding Glass Doors\"."},{"t":"What is a structured, professional approach to determining which materials should be in a library collection?","d":"Selection."},{"t":"What criteria are used to evaluate books specifically for slow or reluctant learners?","d":"Selection, Reinforcement, Segmented Learning, and Visual Impact."},{"t":"What is one of the most commonly used selection tools written by experts to critically evaluate books?","d":"Professional Book Reviews."},{"t":"What YA award specifically recognizes excellence in YA literature?","d":"Michael L. Printz Award."},{"t":"Why shouldn't a librarian rely solely on publisher catalogs?","d":"Publishers are actively marketing their books, so descriptions may be biased."},{"t":"What is the practice of limiting access to words or ideas deemed inappropriate by a governing authority?","d":"Censorship."},{"t":"What is it called when a library worker intentionally ignores collection policy and refuses to buy books based on personal beliefs?","d":"Self-Censorship (or \"quiet censorship\")."},{"t":"What is an attempt to have a library resource removed based on objections?","d":"A Challenge."},{"t":"What is a core argument from opponents of censorship?","d":"It limits access to diverse perspectives and stifles intellectual growth."},{"t":"At what age do children typically have a stable sense of their gender identity?","d":"By Age 4."},{"t":"What is the first stage in Ernest Harms' religious development theory for children?","d":"The Fairy Tale Stage."},{"t":"What is \"Synthetic-Conventional Faith\" in adolescence?","d":"When individuals adopt the religious beliefs of their family/peers without deeply questioning them."},{"t":"In the Philippines, what language was reported as the most widely spoken at home in the 2020 Census?","d":"Tagalog."},{"t":"What percentage of Filipino children lived below the poverty line in 2021?","d":"19.3%."},{"t":"What is the primary cause for dropping out of school for female Filipino youths?","d":"Marriage/family matters."},{"t":"How do cultural orientations in the Philippines differ from Western youth regarding family?","d":"The Philippines is collectivist and deeply family-centric (familism/bayanihan), while the West is individualist."},{"t":"Why do Filipino youth face a \"Literary Gap\" when reading imported Western books?","d":"They experience cultural dissonance reading about snow, autumn, and Western structures that don't match their tropical, post-colonial reality."}],"MLIC":[{"t":"How do Stueart and Moran (2007) define management?","d":"Using organizational resources to achieve objectives through planning, organizing, staffing, leading, and controlling."},{"t":"Who defined management as \"The art of getting things done through people\"?","d":"Mary Follet."},{"t":"What level of management sets policies for the entire organization?","d":"Top Management (Directors and Associate Directors)."},{"t":"What level of management leads the daily activities of individual workers?","d":"First-Line Supervisors (First-Line Management)."},{"t":"What are the five main functions of management?","d":"Planning, Organizing, Staffing, Directing/Leading, and Controlling/Evaluating."},{"t":"Who is the key figure associated with Scientific Management?","d":"Frederick Taylor."},{"t":"Who outlined the five core functions of management and 14 principles in the Classical School?","d":"Henri Fayol."},{"t":"Which Fayol principle states that an employee should receive instructions from only one direct supervisor?","d":"Unity of Command."},{"t":"Which Fayol principle emphasizes finding the right balance between top decision-making and delegated power?","d":"Centralization."},{"t":"What is the clear, unbroken line of communication and authority running from top management down called?","d":"Scalar Chain."},{"t":"Which Fayol principle promotes harmony and unity among staff to improve morale?","d":"Esprit de Corps."},{"t":"Who is associated with Bureaucratic Management, focusing on strict hierarchy and rules?","d":"Max Weber."},{"t":"What movement emerged as a reaction to the rigidity of the Classical School?","d":"Behavioral School (Human Relations Movement)."},{"t":"Who conducted the Hawthorne Studies?","d":"Elton Mayo."},{"t":"What dictates human motivation according to Maslow?","d":"A five-tier hierarchy of needs."},{"t":"According to McGregor, which theory assumes employees inherently dislike work?","d":"Theory X."},{"t":"Who introduced Systems Theory to the Modern School of management?","d":"Ludwig von Bertalanffy."},{"t":"Which theory asserts there is \"no best way\" to manage, and the approach depends on the situation?","d":"Contingency Theory."},{"t":"Who said, \"Nothing in this world is permanent except change\"?","d":"Heraclitus."},{"t":"What is the first step in Griffin's (2008) Dynamic and Interactive Steps of Change?","d":"Recognize that change is needed."},{"t":"What kind of response is a library taking when it anticipates change?","d":"Proactive."},{"t":"What is it called when workers are encouraged and authorized to take initiative to improve operations?","d":"Empowerment."},{"t":"What are the three key steps involved in organizing for change?","d":"Preparation, acceptance, and commitment."},{"t":"What type of planning contains elements of strategic planning but is more focused on specific goals?","d":"Issue-based (or goal-based) Strategic Planning."},{"t":"What planning model evaluates Probable, Possible, and Preferable conditions?","d":"Scenario Planning."},{"t":"What timeframe typically defines long-range planning?","d":"3 years and above."},{"t":"What are unit and service-focused plans called?","d":"Technical Plans."},{"t":"What acronym is used for Environmental Assessment factors (Political, Economic, Social, Technological)?","d":"PEST."},{"t":"What are measurable, enforceable criteria used to determine if something is good or adequate?","d":"Standards."},{"t":"What are flexible directions on how to achieve standards called?","d":"Guidelines."},{"t":"What forecasting method is most helpful when strong political support is beneficial for the selected option?","d":"Delphi Technique."},{"t":"What method aims to copy and adapt the finest practices of other successful organizations?","d":"Benchmarking."},{"t":"What does MBO stand for in management?","d":"Management by Objectives."},{"t":"What does the SMART method stand for?","d":"Specific, Measurable, Achievable, Realistic, and Time-related."},{"t":"Whose MBO principles address managerial problems by measuring true contributions and defining common goals?","d":"George Odiorne."},{"t":"What framework enables libraries to pay greater attention to quality and focus on the customer?","d":"Total Quality Management (TQM)."},{"t":"What dictates what *must* or *must not* be done, distinguishing it from policies?","d":"Rules."},{"t":"What dictates *how* something should be done?","d":"Procedures."},{"t":"What is at the core of the planning process?","d":"Selection from among alternatives (Decision making)."},{"t":"What is the first step in the decision-making process?","d":"Define the problem (identify the challenge)."},{"t":"What is a major advantage of group decision making that prevents one person from having too much power?","d":"Group authority."},{"t":"What is a disadvantage of group decision making related to financial and time expenses?","d":"Cost."},{"t":"How should managers handle routine problems to avoid rapid-fire, ineffective situations?","d":"Rely on policy to settle routine problems."},{"t":"What level of authority should decisions be delegated to?","d":"The level most qualified and interested in handling the problem."},{"t":"How can managers avoid crisis decisions?","d":"By planning ahead."},{"t":"What type of software has publicly available sources?","d":"Open Source."},{"t":"What is an example of an internal pressure for a library as an open system?","d":"People, programs, facilities, technological changes, and finances."},{"t":"Why do people often resist change according to the text?","d":"Their habits and securities are threatened."},{"t":"What is a projection?","d":"A systematic review of available data (e.g., past 5 years of data)."},{"t":"What is a forecast based on?","d":"Assumptions about the future."}],"SADLIC":[{"t":"What republic act is known as the Data Privacy Act of 2012?","d":"Republic Act No. 10173."},{"t":"When was the Data Privacy Act of 2012 signed into law?","d":"August 15, 2012."},{"t":"Which Philippine President signed the Data Privacy Act of 2012 into law?","d":"President Benigno S. Aquino III."},{"t":"According to the text, what is now considered a valuable resource for businesses, governments, and online platforms?","d":"Personal data."},{"t":"What three rising risks did the Philippines face that prompted the creation of the Data Privacy Act?","d":"Data misuse, identity theft, and privacy violations."},{"t":"What was the primary purpose of enacting Republic Act No. 10173?","d":"To address concerns regarding data misuse, identity theft, and privacy violations in the Philippines."}]};
+
+
+// ---------- Utility ----------
+function saveData() {
+  localStorage.setItem('flashcards', JSON.stringify(flashcards));
+  updateCardCount();
+  updateSubjectQuickPick();
+  populateSubjectFilters();
+  updateImportExportSubjects();
+}
+
+function updateCardCount() {
+  document.getElementById('card-count').textContent = flashcards.length;
+  const table = document.getElementById('data-table');
+  const empty = document.getElementById('empty-state');
+  const groupBtn = document.getElementById('create-group-btn');
+  if (flashcards.length > 0) {
+    table.style.display = 'table';
+    empty.style.display = 'none';
+    if (groupBtn) groupBtn.style.display = 'inline-block';
+    renderDataTable();
+  } else {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    if (groupBtn) groupBtn.style.display = 'none';
+  }
+}
+
+function renderDataTable() {
+  const tbody = document.getElementById('data-table-body');
+  const checkboxHeader = document.getElementById('checkbox-header');
+  if (checkboxHeader) checkboxHeader.style.display = 'table-cell';
+
+  // Update hidden subjects bar
+  const hiddenBar = document.getElementById('hidden-subjects-bar');
+  const hiddenList = document.getElementById('hidden-subjects-list');
+  if (hiddenBar && hiddenList) {
+    if (hiddenSubjects.size > 0) {
+      hiddenList.innerHTML = '';
+      Array.from(hiddenSubjects).sort().forEach(subj => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-sm btn-secondary';
+        btn.style.marginRight = '4px';
+        btn.textContent = subj;
+        btn.onclick = function() { toggleSubjectHidden(subj); };
+        hiddenList.appendChild(btn);
+      });
+      hiddenBar.style.display = 'flex';
+      hiddenBar.style.alignItems = 'center';
+      hiddenBar.style.gap = '6px';
+      hiddenBar.style.marginTop = '8px';
+    } else {
+      hiddenBar.style.display = 'none';
+    }
+  }
+
+  // Clear selection tracking
+  selectedRows.clear();
+  updateSelectedCount();
+
+  tbody.innerHTML = '';
+  if (createGroupBySubject) {
+    // Group cards by subject
+    const groups = {};
+    flashcards.forEach(card => {
+      const subj = card.subject || 'General';
+      if (!groups[subj]) groups[subj] = [];
+      groups[subj].push(card);
+    });
+    const sortedSubjects = Object.keys(groups).sort();
+    let idx = 0;
+    sortedSubjects.forEach(subj => {
+      if (isSubjectHidden(subj)) return;
+      // Subject header row (no checkbox, spans all columns)
+      const headerTr = document.createElement('tr');
+      headerTr.className = 'group-header';
+      headerTr.innerHTML = `<td colspan="6" style="padding:6px 12px; font-weight:600; color:${subjectColor(subj)}; text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; display:flex; justify-content:space-between; align-items:center;">
+        <span>${escapeHTML(subj)} <span class="hint" style="color:var(--muted); font-size:0.75rem;">(${groups[subj].length} cards)</span></span>
+        <button class="subject-hide-btn" onclick="toggleSubjectHidden('${escapeHTMLAttr(subj)}')" title="Hide all ${escapeHTMLAttr(subj)} cards">×</button>
+      </td>`;
+      tbody.appendChild(headerTr);
+      // Card rows within this group
+      groups[subj].forEach(card => {
+        idx++;
+        const tr = document.createElement('tr');
+        const origIdx = flashcards.indexOf(card);
+        tr.innerHTML = `
+          <td class="text-center" style="display: table-cell;">
+            <input type="checkbox" class="row-checkbox" onchange="selectRow(${origIdx}, this.checked)" data-index="${origIdx}" />
+          </td>
+          <td>${idx}</td>
+          <td>${escapeHTML(card.term)}</td>
+          <td>${escapeHTML(card.definition)}</td>
+          <td>${escapeHTML(subj)}</td>
+          <td class="text-center">
+            ${editModeActive
+              ? `<button class="btn-sm btn-secondary" onclick="openEditModal(${origIdx})">Edit</button>
+                 <button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button>`
+              : `<button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button>`
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  } else {
+    let idx = 0;
+    flashcards.forEach((card, i) => {
+      const subj = card.subject || 'General';
+      if (isSubjectHidden(subj)) return;
+      idx++;
+      const tr = document.createElement('tr');
+      const hiddenClass = '';
+      tr.innerHTML = `
+        <td class="text-center" style="display: table-cell;">
+          <input type="checkbox" class="row-checkbox" onchange="selectRow(${i}, this.checked)" data-index="${i}" />
+        </td>
+        <td>${idx}</td>
+        <td>${escapeHTML(card.term)}</td>
+        <td>${escapeHTML(card.definition)}</td>
+        <td>
+          <span style="color:${subjectColor(subj)}; font-weight:600;">${escapeHTML(subj)}</span>
+          <button class="subject-hide-btn" onclick="toggleSubjectHidden('${escapeHTMLAttr(subj)}')" title="Hide all ${escapeHTMLAttr(subj)} cards">×</button>
+        </td>
+        <td class="text-center">
+          ${editModeActive
+            ? `<button class="btn-sm btn-secondary" onclick="openEditModal(${i})">Edit</button>
+               <button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button>`
+            : `<button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button>`
+          }
+        </td>
+      `;
+    tbody.appendChild(tr);
+  });
+  }
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, tag => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[tag]));
+}
+
+function escapeHTMLAttr(str) {
+  return String(str).replace(/[&<>"'/]/g, tag => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[tag]));
+}
+
+// ---------- Subject Helpers ----------
+function getUniqueSubjects() {
+  const subjects = new Set();
+  flashcards.forEach(card => subjects.add(card.subject || 'General'));
+  return Array.from(subjects).sort();
+}
+
+function toggleSubjectHidden(subject) {
+  if (hiddenSubjects.has(subject)) {
+    hiddenSubjects.delete(subject);
+  } else {
+    hiddenSubjects.add(subject);
+  }
+  renderDataTable();
+}
+
+function clearHiddenSubjects() {
+  hiddenSubjects.clear();
+  renderDataTable();
+}
+
+function isSubjectHidden(subject) {
+  return hiddenSubjects.has(subject);
+}
+
+// Neon color palette for subjects
+const SUBJECT_COLORS = ['#00ffff', '#ff00ff', '#ffff00', '#ff007f', '#7fffff', '#ff7fff', '#ffff7f', '#00ff7f', '#7f00ff', '#ff007f'];
+let subjectColorMap = {};
+
+function subjectColor(subj) {
+  if (!subjectColorMap[subj]) {
+    const idx = Object.keys(subjectColorMap).length % SUBJECT_COLORS.length;
+    subjectColorMap[subj] = SUBJECT_COLORS[idx];
+  }
+  return subjectColorMap[subj];
+}
+
+function updateSubjectQuickPick() {
+  // Populate the shared datalist with existing subjects
+  const dl = document.getElementById('subject-datalist');
+  if (dl) {
+    dl.innerHTML = '';
+    const subjects = getUniqueSubjects();
+    subjects.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      dl.appendChild(opt);
+    });
+  }
+
+  // Populate quick-pick buttons in the Create form
+  const container = document.getElementById('subject-quick-picks');
+  if (!container) return;
+  const subjects = getUniqueSubjects();
+
+  if (subjects.length <= 1) {
+    container.innerHTML = '<span class="hint" style="display: inline-block;">Quick-pick:</span><span class="hint" style="margin-left: 6px; font-size: 0.78rem;">Add cards to see subjects here</span>';
+    return;
+  }
+
+  const html = ['<span class="hint" style="display: inline-block;">Quick-pick:</span>'];
+  subjects.forEach(s => {
+    const safe = s.replace(/'/g, "\\'");
+    html.push(`<button type="button" class="btn-sm btn-secondary" onclick="setSubject('${safe}')">${s}</button>`);
+  });
+  container.innerHTML = html.join('');
+}
+
+function setSubject(subj) {
+  document.getElementById('subject').value = subj;
+}
+
+function applySubjectToForm() {
+  const subject = document.getElementById('subject').value.trim();
+  if (!subject) {
+    alert('Enter a subject name first.');
+    return;
+  }
+  let count = 0;
+  flashcards.forEach(card => {
+    if (!card.subject) {
+      card.subject = subject;
+      count++;
+    }
+  });
+  if (count > 0) {
+    saveData();
+    alert(`Applied "${subject}" to ${count} card(s) with empty subjects.`);
+  } else {
+    alert('All cards already have a subject assigned.');
+  }
+}
+
+// ---------- Tab Navigation ----------
+function showTab(tabName) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabName + '-tab').classList.add('active');
+  event.target.classList.add('active');
+
+  if (tabName === 'study') checkStudyReady();
+  if (tabName === 'test') checkTestReady();
+}
+
+// ---------- Card CRUD ----------
+function addCard() {
+  const term = document.getElementById('term').value.trim();
+  const definition = document.getElementById('definition').value.trim();
+  if (!term || !definition) {
+    alert('Please enter both a term and a definition.');
+    return;
+  }
+  const subject = document.getElementById('subject').value.trim();
+  flashcards.push({
+    term,
+    definition,
+    subject: subject || 'General'
+  });
+  saveData();
+  document.getElementById('term').value = '';
+  document.getElementById('definition').value = '';
+  document.getElementById('subject').value = '';
+  document.getElementById('term').focus();
+}
+
+function addBulkCards() {
+  const data = document.getElementById('bulk-data').value.trim();
+  if (!data) return;
+  const bulkSubject = document.getElementById('bulk-subject').value.trim() || null;
+
+  let pairs = data.split(/\n\s*\n/).map(s => s.trim()).filter(s => s);
+  if (pairs.length === 1) {
+    pairs = data.split(/\n---\n|\n-\n/).map(s => s.trim()).filter(s => s);
+  }
+
+  let added = 0;
+  for (const pair of pairs) {
+    const lines = pair.split('\n').map(s => s.trim());
+    if (lines.length >= 2) {
+      // Extract #subject: override if present (can be on any line after term)
+      let subject = null;
+      const defLines = [];
+      for (let j = 1; j < lines.length; j++) {
+        const subjMatch = lines[j].match(/^#subject:\s*(.+)$/i);
+        if (subjMatch) {
+          subject = subjMatch[1].trim();
+        } else {
+          defLines.push(lines[j]);
+        }
+      }
+      flashcards.push({
+        term: lines[0],
+        definition: defLines.join(' ').trim(),
+        subject: subject || bulkSubject || 'General'
+      });
+      added++;
+    }
+  }
+
+  if (added > 0) {
+    saveData();
+    document.getElementById('bulk-data').value = '';
+    document.getElementById('bulk-subject').value = '';
+  } else {
+    alert('Could not parse any cards. Use blank lines to separate cards.');
+  }
+}
+
+function deleteCard(index) {
+  if (confirm('Delete this flashcard?')) {
+    flashcards.splice(index, 1);
+    saveData();
+  }
+}
+
+let editCardIndex = -1;
+
+function openEditModal(index) {
+  const card = flashcards[index];
+  if (!card) return;
+  editCardIndex = index;
+  document.getElementById('edit-term').value = card.term;
+  document.getElementById('edit-definition').value = card.definition;
+  document.getElementById('edit-subject').value = card.subject || 'General';
+  document.getElementById('edit-card-index').textContent = `#${index + 1}`;
+  populateSubjectSuggestions(card.subject || 'General');
+  document.getElementById('edit-modal').classList.add('active');
+  document.getElementById('edit-term').focus();
+}
+
+function populateSubjectSuggestions(selectedSubject) {
+  const select = document.getElementById('edit-subject-suggestions');
+  const subjects = getUniqueSubjects();
+  select.innerHTML = '<option value="">-- Quick pick subject --</option>';
+  subjects.forEach(subj => {
+    const opt = document.createElement('option');
+    opt.value = subj;
+    opt.textContent = subj;
+    opt.selected = (subj === selectedSubject);
+    select.appendChild(opt);
+  });
+}
+
+function applySubjectSuggestion() {
+  const select = document.getElementById('edit-subject-suggestions');
+  const input = document.getElementById('edit-subject');
+  if (select.value) {
+    input.value = select.value;
+  }
+  select.value = '';
+}
+
+function saveEdit() {
+  if (editCardIndex === -1) return;
+  const term = document.getElementById('edit-term').value.trim();
+  const definition = document.getElementById('edit-definition').value.trim();
+  const subject = document.getElementById('edit-subject').value.trim();
+  if (!term || !definition) {
+    alert('Please enter both a term and a definition.');
+    return;
+  }
+  flashcards[editCardIndex] = {
+    term,
+    definition,
+    subject: subject || 'General'
+  };
+  saveData();
+  closeEditModal();
+}
+
+function closeEditModal() {
+  editCardIndex = -1;
+  document.getElementById('edit-modal').classList.remove('active');
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('active')) {
+    closeEditModal();
+  }
+});
+
+function editMode() {
+  editModeActive = !editModeActive;
+  const btn = event ? event.target : document.querySelector('button[onclick="editMode()"]');
+  btn.textContent = editModeActive ? 'Done Editing' : 'Edit Cards';
+  btn.classList.toggle('btn-danger', editModeActive);
+  btn.classList.toggle('btn-secondary', !editModeActive);
+
+  // Batch section is always visible now
+  // Update select-all checkbox
+  const selectAllCb = document.getElementById('select-all');
+  if (selectAllCb) selectAllCb.checked = false;
+
+  selectedRows.clear();
+  updateSelectedCount();
+  updateSubjectQuickPick();
+
+  renderDataTable();
+}
+
+function clearAll() {
+  if (flashcards.length === 0) return;
+  if (confirm('Delete ALL flashcards? This cannot be undone.')) {
+    flashcards = [];
+    hiddenSubjects.clear();
+    saveData();
+    renderDataTable();
+  }
+}
+
+// ---------- Subject Grouping ----------
+function toggleCreateGroupBySubject() {
+  createGroupBySubject = !createGroupBySubject;
+  const btn = document.getElementById('create-group-btn');
+  if (btn) {
+    btn.textContent = createGroupBySubject ? 'Ungroup' : 'Group by Subject';
+    btn.style.display = 'inline-block';
+  }
+  renderDataTable();
+}
+
+function toggleCreateTable() {
+  const container = document.getElementById('data-table-container');
+  const btn = document.getElementById('create-table-hide-btn');
+  if (!container || !btn) return;
+  if (container.style.display === 'none') {
+    container.style.display = 'block';
+    btn.textContent = 'Hide Table';
+  } else {
+    container.style.display = 'none';
+    btn.textContent = 'Show Table';
+  }
+}
+
+function toggleCreateForm() {
+  const form = document.getElementById('create-form');
+  const btn = document.getElementById('create-form-hide-btn');
+  if (!form || !btn) return;
+  if (form.style.display === 'none') {
+    form.style.display = 'block';
+    btn.textContent = 'Hide Form';
+  } else {
+    form.style.display = 'none';
+    btn.textContent = 'Show Form';
+  }
+}
+function selectRow(index, checked) {
+  if (checked) {
+    selectedRows.add(index);
+  } else {
+    selectedRows.delete(index);
+  }
+  updateSelectedCount();
+  // Update select-all checkbox
+  const selectAllCb = document.getElementById('select-all');
+  if (selectAllCb) selectAllCb.checked = selectedRows.size === flashcards.length;
+}
+
+function toggleSelectAll() {
+  const selectAllCb = document.getElementById('select-all');
+  const checkboxes = document.querySelectorAll('.row-checkbox');
+  if (selectAllCb.checked) {
+    checkboxes.forEach(cb => { cb.checked = true; selectedRows.add(parseInt(cb.dataset.index)); });
+  } else {
+    checkboxes.forEach(cb => { cb.checked = false; selectedRows.delete(parseInt(cb.dataset.index)); });
+  }
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const count = document.getElementById('selected-count');
+  if (count) count.textContent = `${selectedRows.size} selected`;
+}
+
+function showStatus(msg, color) {
+  const el = document.getElementById('batch-status');
+  if (el) {
+    el.textContent = msg;
+    el.style.color = color || 'var(--accent3)';
+    setTimeout(() => { if (el) el.textContent = ''; }, 3000);
+  }
+}
+
+function batchAssignSubject() {
+  const subject = document.getElementById('batch-subject').value.trim();
+  if (!subject) {
+    showStatus('Enter a subject first.', 'var(--danger)');
+    return;
+  }
+  if (selectedRows.size === 0) {
+    showStatus('Select at least one card first.', 'var(--danger)');
+    return;
+  }
+  let count = 0;
+  selectedRows.forEach(idx => {
+    if (flashcards[idx]) {
+      flashcards[idx].subject = subject;
+      count++;
+    }
+  });
+  saveData();
+  document.getElementById('batch-subject').value = '';
+  selectedRows.clear();
+  document.getElementById('select-all').checked = false;
+  showStatus(`Applied "${subject}" to ${count} card(s).`, 'var(--accent3)');
+}
+
+// ---------- Study Mode ----------
+function checkStudyReady() {
+  const ready = document.getElementById('study-ready');
+  const table = document.getElementById('study-table-view');
+  const empty = document.getElementById('study-empty');
+  populateSubjectFilters();
+  if (flashcards.length === 0) {
+    ready.style.display = 'none';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+  } else {
+    ready.style.display = 'block';
+    table.style.display = 'none';
+    empty.style.display = 'none';
+    resetStudy();
+  }
+}
+
+function toggleStudyView() {
+  const ready = document.getElementById('study-ready');
+  const table = document.getElementById('study-table-view');
+  const btn = document.getElementById('view-toggle-btn');
+  const groupBtn = document.getElementById('group-by-btn');
+  if (ready.style.display === 'none') {
+    // Switch to flashcard view
+    ready.style.display = 'block';
+    table.style.display = 'none';
+    btn.textContent = 'Table View';
+    if (groupBtn) groupBtn.style.display = 'none';
+    resetStudy();
+  } else {
+    // Switch to table view
+    ready.style.display = 'none';
+    table.style.display = 'block';
+    btn.textContent = 'Card View';
+    if (groupBtn) groupBtn.style.display = 'inline-block';
+    renderStudyTable();
+  }
+}
+
+function toggleGroupBySubject() {
+  studyGroupBySubject = !studyGroupBySubject;
+  const btn = document.getElementById('group-by-btn');
+  if (btn) {
+    btn.textContent = studyGroupBySubject ? 'Ungroup Subjects' : 'Group by Subject';
+    btn.style.display = 'inline-block';
+  }
+  renderStudyTable();
+}
+
+function renderStudyTable() {
+  const tbody = document.getElementById('study-table-body');
+  const counter = document.getElementById('table-counter');
+  tbody.innerHTML = '';
+  const filtered = getFilteredFlashcards('study-subject-filter');
+
+  if (studyGroupBySubject) {
+    // Group cards by subject
+    const groups = {};
+    filtered.forEach(card => {
+      const subj = card.subject || 'General';
+      if (!groups[subj]) groups[subj] = [];
+      groups[subj].push(card);
+    });
+    const sortedSubjects = Object.keys(groups).sort();
+    let idx = 0;
+    sortedSubjects.forEach(subj => {
+      // Subject header row
+      const headerTr = document.createElement('tr');
+      headerTr.className = 'group-header';
+      headerTr.innerHTML = `<td colspan="4" style="padding:6px 12px; font-weight:600; color:${subjectColor(subj)}; text-transform:uppercase; font-size:0.8rem; letter-spacing:1px;">${escapeHTML(subj)} <span class="hint" style="color:var(--muted); font-size:0.75rem;">(${groups[subj].length} cards)</span></td>`;
+      tbody.appendChild(headerTr);
+      // Card rows
+      groups[subj].forEach(card => {
+        idx++;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx}</td>
+          <td>${escapeHTML(card.term)}</td>
+          <td>${escapeHTML(card.definition)}</td>
+          <td>${escapeHTML(subj)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  } else {
+    filtered.forEach((card, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${escapeHTML(card.term)}</td>
+        <td>${escapeHTML(card.definition)}</td>
+        <td>${escapeHTML(card.subject || 'General')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  counter.textContent = `${filtered.length} card${filtered.length !== 1 ? 's' : ''} total (filtered from ${flashcards.length})`;
+
+  // Hide progress bar in table view
+  document.getElementById('progress-bar').style.display = 'none';
+}
+
+function getFilteredFlashcards(filterId) {
+  const filter = document.getElementById(filterId) ? document.getElementById(filterId).value : 'all';
+  if (filter === 'all') return [...flashcards];
+  return flashcards.filter(card => (card.subject || 'General') === filter);
+}
+
+function populateSubjectFilters() {
+  const subjects = getUniqueSubjects();
+  const studyFilter = document.getElementById('study-subject-filter');
+  const testFilter = document.getElementById('test-subject-filter');
+
+  const buildOptions = (el) => {
+    const currentVal = el ? el.value : 'all';
+    el.innerHTML = '';
+    // "All Subjects" option
+    const allOpt = document.createElement('option');
+    allOpt.value = 'all';
+    allOpt.textContent = 'All Subjects';
+    if (currentVal === 'all' || !currentVal) allOpt.selected = true;
+    el.appendChild(allOpt);
+    // Separator
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '─────────────────';
+    el.appendChild(sep);
+    // Individual subjects with color dots
+    subjects.forEach(subj => {
+      const opt = document.createElement('option');
+      opt.value = subj;
+      opt.textContent = '• ' + subj;
+      opt.selected = (subj === currentVal);
+      opt.style.color = subjectColor(subj);
+      el.appendChild(opt);
+    });
+  };
+
+  if (studyFilter) buildOptions(studyFilter);
+  if (testFilter) buildOptions(testFilter);
+}
+
+function filterStudyBySubject() {
+  populateSubjectFilters();
+  if (document.getElementById('study-table-view').style.display === 'block') {
+    renderStudyTable();
+  }
+  // If in flashcard view, reset the study session
+  if (document.getElementById('study-ready').style.display === 'block') {
+    resetStudy();
+  }
+}
+
+function filterTestBySubject() {
+  populateSubjectFilters();
+}
+
+function resetStudy() {
+  studyIndex = 0;
+  studyFlipped = false;
+  knownCards.clear();
+  unknownCards.clear();
+  document.getElementById('flashcard').classList.remove('flipped');
+  renderStudyCard();
+  updateStudyProgress();
+}
+
+function shuffleStudyCards() {
+  // Fisher-Yates shuffle
+  for (let i = flashcards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+  }
+  studyIndex = 0;
+  studyFlipped = false;
+  knownCards.clear();
+  unknownCards.clear();
+  document.getElementById('flashcard').classList.remove('flipped');
+  renderStudyCard();
+  updateStudyProgress();
+  saveData();
+}
+
+function getStudyCards() {
+  return getFilteredFlashcards('study-subject-filter');
+}
+
+function renderStudyCard() {
+  const cards = getStudyCards();
+  if (cards.length === 0) {
+    document.getElementById('flashcard-content').textContent = 'No cards match this subject.';
+    document.getElementById('study-index').textContent = '0';
+    document.getElementById('study-total').textContent = '0';
+    return;
+  }
+  const card = cards[studyIndex];
+  const content = document.getElementById('flashcard-content');
+  const label = document.querySelector('#flashcard .label');
+  label.textContent = 'Term / Question';
+  content.textContent = card.term;
+  document.getElementById('study-index').textContent = studyIndex + 1;
+  document.getElementById('study-total').textContent = cards.length;
+}
+
+function flipCard() {
+  const card = document.getElementById('flashcard');
+  const content = document.getElementById('flashcard-content');
+  const label = document.querySelector('#flashcard .label');
+  const cards = getStudyCards();
+  if (!studyFlipped) {
+    const current = cards[studyIndex];
+    label.textContent = 'Definition / Answer';
+    content.textContent = current.definition;
+    card.classList.add('flipped');
+    studyFlipped = true;
+  } else {
+    const current = cards[studyIndex];
+    label.textContent = 'Term / Question';
+    content.textContent = current.term;
+    card.classList.remove('flipped');
+    studyFlipped = false;
+  }
+}
+
+function prevCard() {
+  if (studyIndex > 0) {
+    studyIndex--;
+    studyFlipped = false;
+    document.getElementById('flashcard').classList.remove('flipped');
+    renderStudyCard();
+  }
+}
+
+function nextCard() {
+  const cards = getStudyCards();
+  if (studyIndex < cards.length - 1) {
+    studyIndex++;
+    studyFlipped = false;
+    document.getElementById('flashcard').classList.remove('flipped');
+    renderStudyCard();
+  }
+}
+
+function markKnown() {
+  knownCards.add(studyIndex);
+  unknownCards.delete(studyIndex);
+  updateStudyProgress();
+  nextOrEnd();
+}
+
+function markUnknown() {
+  unknownCards.add(studyIndex);
+  knownCards.delete(studyIndex);
+  updateStudyProgress();
+
+  // Show the definition so the user can review the correct answer
+  const cardEl = document.getElementById('flashcard');
+  const content = document.getElementById('flashcard-content');
+  const label = document.querySelector('#flashcard .label');
+  const cards = getStudyCards();
+  if (cards[studyIndex]) {
+    label.textContent = 'Definition / Answer';
+    content.textContent = cards[studyIndex].definition;
+    cardEl.classList.add('flipped');
+    studyFlipped = true;
+  }
+
+  // Advance to the next card after a short review delay
+  setTimeout(() => {
+    if (studyIndex < cards.length - 1) {
+      studyIndex++;
+      studyFlipped = false;
+      cardEl.classList.remove('flipped');
+      renderStudyCard();
+    } else {
+      const allKnown = knownCards.size + unknownCards.size === cards.length;
+      if (allKnown) {
+        alert(`Study session complete!\n\nKnown: ${knownCards.size}\nDon't Know: ${unknownCards.size}`);
+      }
+    }
+  }, 1800);
+}
+
+function updateStudyProgress() {
+  document.getElementById('known-count').textContent = knownCards.size;
+  document.getElementById('unknown-count').textContent = unknownCards.size;
+  document.getElementById('progress-bar').style.display = 'block';
+}
+
+function nextOrEnd() {
+  const cards = getStudyCards();
+  if (studyIndex < cards.length - 1) {
+    nextCard();
+  } else {
+    const allKnown = knownCards.size + unknownCards.size === cards.length;
+    if (allKnown) {
+      alert(`Study session complete!\nKnown: ${knownCards.size}\nDon't Know: ${unknownCards.size}`);
+    }
+  }
+}
+
+// ---------- Test Mode ----------
+let testSettings = {
+  choiceCount: 4,
+  questionCount: 10,
+  direction: 'term-to-def',
+  shuffleAnswers: true,
+  timer: 0,
+  showSubject: false,
+  repeatWrong: true
+};
+
+function getTestSettings() {
+  testSettings = {
+    choiceCount: parseInt(document.getElementById('choice-count').value),
+    questionCount: parseInt(document.getElementById('question-count').value),
+    direction: document.getElementById('test-direction').value,
+    shuffleAnswers: document.getElementById('shuffle-answers').value === 'true',
+    timer: parseInt(document.getElementById('test-timer').value),
+    showSubject: document.getElementById('show-subject').value === 'true',
+    repeatWrong: document.getElementById('repeat-wrong').value === 'true'
+  };
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('test-settings');
+  const btn = document.getElementById('settings-toggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    btn.textContent = 'Hide';
+  } else {
+    panel.style.display = 'none';
+    btn.textContent = 'Show';
+  }
+}
+
+function checkTestReady() {
+  const ready = document.getElementById('test-ready');
+  const empty = document.getElementById('test-empty');
+  populateSubjectFilters();
+  if (flashcards.length === 0) {
+    ready.style.display = 'none';
+    empty.style.display = 'block';
+  } else {
+    ready.style.display = 'block';
+    empty.style.display = 'none';
+  }
+}
+
+function startTest() {
+  if (flashcards.length === 0) return;
+
+  getTestSettings();
+
+  testActive = true;
+  testScore = 0;
+  testTotal = 0;
+  testQuestionIndex = 0;
+  wrongAnswers = [];
+
+  // Use subject-filtered cards
+  testQuestions = getFilteredFlashcards('test-subject-filter').sort(() => Math.random() - 0.5);
+  // Apply question count limit
+  const maxQ = testSettings.questionCount >= 200 ? testQuestions.length : Math.min(testSettings.questionCount, testQuestions.length);
+  if (testQuestions.length > maxQ) testQuestions = testQuestions.slice(0, maxQ);
+
+  document.getElementById('start-test-btn').style.display = 'none';
+  document.getElementById('reset-test-btn').style.display = 'inline-block';
+  showTestQuestion();
+}
+
+// ---------- Test Helpers (global) ----------
+function classifyType(val) {
+    if (val.match(/^\d{4}$/)) return 'year';
+  if (val.match(/^\d+$/)) return 'number';
+  // Proper names: single capitalized words (Mars, Paris) and multi-word names
+  // with particles (Leonardo da Vinci, Vincent van Gogh, Mary-Jane Watson)
+  if (val.match(/^[A-Z][a-z]+$/)) return 'proper-name';
+  if (val.match(/^The [A-Z][a-z]+ [A-Z][a-z]+$/)) return 'proper-name';
+  if (val.match(/^[A-Z][a-z]+([ '-][a-z]+)* [A-Z][a-z]+$/)) return 'proper-name';
+  if (val.match(/^[A-Z][a-z]+ [A-Z][a-z]+$/)) return 'proper-name';
+  // Chemical formulas: H2O, CO2, NaCl
+  if (val.match(/^[A-Z][a-z]?\d+[A-Za-z0-9]*$/) && val.length <= 15) return 'formula';
+  if (val.match(/^[A-Z]{1,2}\d*$/) && val.length <= 4) return 'short-code';
+  return 'phrase';
+}
+
+// Sub-category for proper names: 'person' vs 'place' vs 'other'
+var KNOWN_PERSON_NAMES = new Set();  // populated by generateContentDistractors
+// Global person name arrays for field-of-work categorization
+var KNOWN_AUTHORS = new Set(['Homer', 'Dante', 'Cervantes', 'Jane Austen', 'Mark Twain', 'Charles Dickens', 'Leo Tolstoy', 'William Wordsworth', 'Ernest Hemingway', 'F Scott Fitzgerald', 'Oscar Wilde', 'Edgar Allan Poe', 'Moliere', 'Chekhov', 'Ibsen', 'William Shakespeare']);
+var KNOWN_PAINTERS = new Set(['Michelangelo', 'Raphael', 'Donatello', 'Caravaggio', 'Rembrandt', 'Van Gogh', 'Claude Monet', 'Salvador Dali', 'Edvard Munch', 'Jackson Pollock', 'Botticelli', 'Titian', 'Bernini', 'Sargent', 'Leonardo da Vinci']);
+var KNOWN_COMPOSERS = new Set(['Beethoven', 'Mozart', 'Bach', 'Chopin', 'Tchaikovsky', 'Vivaldi', 'Handel', 'Haydn', 'Verdi', 'Rossini', 'Wagner', 'Telemann']);
+function semanticCategory(val) {
+  if (val.match(/^The [A-Z]/)) return 'place';        // The Pacific Ocean
+  if (val.match(/^The [A-Z][a-z]+$/)) return 'place';  // The Atlantic
+  // Single-word proper names: could be person (Michelangelo) or place (Mars, Paris)
+  if (val.match(/^[A-Z][a-z]+$/)) {
+    if (KNOWN_PERSON_NAMES.has(val)) return 'person';
+    return 'place';     // Mars, Paris, Pluto, Rome
+  }
+  return 'person';                                     // Leonardo da Vinci, William Shakespeare
+}
+
+// Field of work for person names, so a writer distractor doesn't appear on a painting question
+function personField(val) {
+  if (KNOWN_AUTHORS.has(val)) return 'author';
+  if (KNOWN_PAINTERS.has(val)) return 'painter';
+  if (KNOWN_COMPOSERS.has(val)) return 'composer';
+  // Check KNOWN_PERSON_NAMES for multi-word names like "Leonardo da Vinci"
+  return 'other';
+}
+
+// Detect field of work from the question text
+function questionField(cardEntry) {
+  const t = (cardEntry && cardEntry.term || '').toLowerCase();
+  if (t.includes('wrote') || t.includes('author') || t.includes('poet') || t.includes('novel') || t.includes('literature') || t.includes('book')) return 'author';
+  if (t.includes('paint') || t.includes('artist') || t.includes('draw') || t.includes('sculpt')) return 'painter';
+  if (t.includes('music') || t.includes('composer') || t.includes('symphony') || t.includes('song') || t.includes('opera')) return 'composer';
+  return null;
+}
+
+function charOverlap(a, b) {
+  const setA = new Set(a.toLowerCase());
+  let overlap = 0;
+  for (const ch of b.toLowerCase()) {
+    if (setA.has(ch)) overlap++;
+  }
+  return overlap;
+}
+
+function saveTestHistory() {
+  if (testHistory.length > 500) testHistory = testHistory.slice(-500);
+  localStorage.setItem('testHistory', JSON.stringify(testHistory));
+}
+
+function clearTestHistory() {
+  testHistory = [];
+  localStorage.removeItem('testHistory');
+}
+
+function recordTestHistory(cardEntry, wrongSelected, correctAnswer, mode) {
+  if (!cardEntry || !cardEntry.subject) return;
+  const entry = {
+    term: cardEntry.term,
+    definition: cardEntry.definition,
+    subject: cardEntry.subject,
+    wrongSelected: wrongSelected || '(timeout)',
+    correctAnswer: correctAnswer,
+    direction: mode,
+    timestamp: Date.now()
+  };
+  const existing = testHistory.filter(h => h.term === cardEntry.term && h.definition === cardEntry.definition);
+  if (existing.length < 20) {
+    testHistory.push(entry);
+    saveTestHistory();
+  }
+}
+
+function getHistoricallyWrong(term, definition, field, exclude) {
+  return testHistory
+    .filter(h => h.term === term && h.definition === definition)
+    .map(h => h.wrongSelected)
+    .filter(v => v && v !== exclude && v !== '(timeout)');
+}
+
+// --- Content-relevant distractor generation ---
+// Generates distractors directly related to the correct answer's content and type,
+// e.g. for "4" → "2", "8", "40"; for "H2O" → "CO2", "O2"; for "Mars" → "Venus", "Earth"
+// --- Reference-based distractor generation ---
+// Uses the embedded reference knowledge base to find distractors from the SAME
+// subject that are semantically related to the correct answer.
+function generateReferenceDistractors(correct, cardEntry) {
+    const subject = cardEntry.subject;
+    if (!subject || !REFERENCE_KNOWLEDGE[subject]) return [];
+
+    const cards = REFERENCE_KNOWLEDGE[subject];
+    const correctTrimmed = correct.trim();
+    const excludeType = classifyType(correctTrimmed);
+    const STOP_WORDS = new Set(['is','the','of','for','a','an','and','or','in','on','at','to','from','as','by','with','this','that','which','when','where','who','how','name','define','was','had','have','are','per','century','first','what','did','does','can']);
+    const excludeWords = new Set(correctTrimmed.toLowerCase().split(/[\s\-_.,:()]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)));
+    // Significant words from the current question (term) — used for topic-matching
+    const questionWords = new Set((cardEntry.term || '').toLowerCase().split(/[\s\-_?.!,':]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)));
+
+    const candidates = [];
+    for (const c of cards) {
+        // Skip the current card
+        if (c.t === cardEntry.term && c.d === correctTrimmed) continue;
+
+        const val = c.d.trim();
+        if (!val || val === correctTrimmed) continue;
+
+        const valType = classifyType(val);
+        let score = 0;
+        let shared = 0;
+        let qShared = 0;
+        let crossShared = 0;
+
+        // Same type = strong signal
+        if (valType === excludeType) score += 50;
+
+        // Person category match
+        if (valType === 'proper-name' && excludeType === 'proper-name') {
+            if (semanticCategory(val) === semanticCategory(correctTrimmed)) score += 50;
+            else score -= 25;
+        }
+
+        // Answer word overlap — HIGH weight (this is what makes distractors similar to the right answer)
+        const valWords = new Set(val.toLowerCase().split(/[\s\-_.,:()]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)));
+        for (const w of excludeWords) if (valWords.has(w)) shared++;
+        score += shared * 60;
+
+        // Question topic overlap — find cards about the same topic
+        const cardWords = new Set((c.t || '').toLowerCase().split(/[\s\-_?.!,':]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)));
+        for (const w of questionWords) if (cardWords.has(w)) qShared++;
+        score += qShared * 30;
+
+        // Cross-similarity: question words that appear in the distractor's answer
+        // (indicates the distractor is conceptually related to the question topic)
+        for (const w of questionWords) if (valWords.has(w)) crossShared++;
+        score += crossShared * 25;
+
+        // Length similarity — closer length = more similar format
+        const lenDiff = Math.abs(val.length - correctTrimmed.length);
+        score += Math.max(0, 30 - lenDiff * 2);
+
+        // Shared prefix/substring bonus — rewards structural similarity
+        const shorter = correctTrimmed.length < val.length ? correctTrimmed : val;
+        const longer = correctTrimmed.length < val.length ? val : correctTrimmed;
+        if (shorter.length > 4) {
+            let prefixMatch = 0;
+            for (let i = 0; i < shorter.length; i++) {
+                if (shorter[i].toLowerCase() === longer[i].toLowerCase()) prefixMatch++;
+                else break;
+            }
+            score += prefixMatch * 4;
+        }
+
+        // Field-of-work mismatch penalty for persons
+        if (valType === 'proper-name' && excludeType === 'proper-name' &&
+            semanticCategory(val) === 'person' && semanticCategory(correctTrimmed) === 'person') {
+            const qf = questionField(cardEntry);
+            const vf = personField(val);
+            if (qf && vf && qf !== vf && vf !== 'other') score -= 80;
+        }
+
+        // Only keep candidates with some similarity
+        if (score > 15) {
+            candidates.push({val, score, shared, qShared, crossShared});
+        }
+    }
+
+    // Sort: primarily by answer similarity (shared words), then question topic overlap
+    candidates.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.shared !== a.shared) return b.shared - a.shared;
+        return b.qShared - a.qShared;
+    });
+    return candidates.slice(0, 8).map(c => c.val);
+}
+
+function generateContentDistractors(correct, cardEntry) {
+  const correctTrimmed = correct.trim();
+  const type = classifyType(correctTrimmed);
+  const distractors = [];
+
+  // Phase 1: Domain-specific distractors from the reference knowledge base
+  const refDistractors = generateReferenceDistractors(correctTrimmed, cardEntry);
+  for (const d of refDistractors) {
+    if (d !== correctTrimmed && !distractors.includes(d)) distractors.push(d);
+  }
+
+  if (type === 'number' || type === 'year') {
+    const num = parseInt(correctTrimmed, 10);
+    if (!isNaN(num) && num > 0) {
+      if (type === 'year') {
+        // Nearby years (harder to eliminate: ±1, ±2, ±5, ±10)
+        distractors.push(String(num - 1), String(num + 1), String(num - 2), String(num + 2), String(num - 5), String(num + 5));
+      } else {
+        // Numbers: math-related variants (double, half, adjacent, square, cube)
+        distractors.push(String(num + 1), String(num - 1), String(num * 2), String(num / 2), String(num * num), String(num * num * num));
+      }
+    }
+  }
+
+  if (type === 'formula') {
+    // Chemical formulas / elements — closer structural variants first
+    const formulas = ['H2O2', 'H3O', 'HO', 'D2O', 'O2', 'CO2', 'N2O', 'SO2', 'NO2', 'NaCl', 'CO', 'He', 'Ne'];
+    for (const f of formulas) {
+      if (f !== correctTrimmed && !distractors.includes(f)) distractors.push(f);
+    }
+  }
+
+  if (type === 'proper-name') {
+    const cat = semanticCategory(correctTrimmed);
+    const lower = correctTrimmed.toLowerCase();
+
+    // Famous people datasets for generating relevant distractors
+    // Local arrays for distractor generation (same data as global sets)
+    const authors = [...KNOWN_AUTHORS];
+    const painters = [...KNOWN_PAINTERS];
+    const composers = [...KNOWN_COMPOSERS];
+    // Populate global person names for semanticCategory lookup
+    for (const n of [...authors, ...painters, ...composers]) KNOWN_PERSON_NAMES.add(n);
+    // Also add multi-word person names from flashcards (but NOT single-word places like Paris/Mars)
+    if (correctTrimmed.includes(' ') && cardEntry && cardEntry.subject && personField(correctTrimmed) === 'other') {
+      // Multi-word names likely aren't places — only add if not in known category
+      KNOWN_PERSON_NAMES.add(correctTrimmed);
+    }
+
+    // Inner planets first (closest to Mars), then outer, then dwarf planets
+    const planets = ['Venus', 'Earth', 'Mercury', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Ceres', 'Vesta', 'Eris', 'Haumea', 'Makemake'];
+    const oceans = ['Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean', 'Southern Ocean'];
+    // European capitals first (closest to Paris/France), then others
+    const capitals = ['London', 'Berlin', 'Rome', 'Madrid', 'Lisbon', 'Vienna', 'Brussels', 'Amsterdam', 'Tokyo', 'Ottawa', 'Canberra'];
+    const countries = ['Germany', 'Italy', 'France', 'Spain', 'Canada', 'Australia', 'Brazil', 'Japan'];
+
+    // Detect if this is a planet-related answer
+    if (correctTrimmed.toLowerCase().includes('planet') || planets.some(p => p.toLowerCase() === lower)) {
+      for (const p of planets) if (p !== correctTrimmed && !distractors.includes(p)) distractors.push(p);
+    }
+    // Detect ocean reference (check both answer and question)
+    if (lower.includes('ocean') || lower.includes('pacific') || lower.includes('atlantic') ||
+        (cardEntry && cardEntry.term && /ocean/i.test(cardEntry.term))) {
+      const oceanNames = ['Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean', 'Southern Ocean', 'Pacific Ocean'];
+      for (const o of oceanNames) {
+        // Skip if distractor is the same as correct answer (e.g. "Pacific Ocean" vs "The Pacific Ocean")
+        if (o !== correctTrimmed && o.replace(/^The /, '') !== correctTrimmed && correctTrimmed.replace(/^The /, '') !== o && !distractors.includes(o)) distractors.push(o);
+      }
+    }
+    // Detect capital/city reference (check the QUESTION, not the answer!)
+    if (cardEntry && cardEntry.term && /capital/i.test(cardEntry.term)) {
+      for (const c of capitals) if (c !== correctTrimmed && !distractors.includes(c)) distractors.push(c);
+    }
+
+    if (cat === 'person') {
+      // If question is about literature/author
+      const t = (cardEntry && cardEntry.term || '').toLowerCase();
+      if (t.includes('wrote') || t.includes('author') || t.includes('poet') || t.includes('novel')) {
+        for (const a of authors) if (a !== correctTrimmed && !distractors.includes(a)) distractors.push(a);
+      }
+      // If question is about painting/artist
+      if (t.includes('paint') || t.includes('artist')) {
+        for (const p of painters) if (p !== correctTrimmed && !distractors.includes(p)) distractors.push(p);
+      }
+      // If question is about music
+      if (t.includes('music') || t.includes('composer') || t.includes('symphony')) {
+        for (const c of composers) if (c !== correctTrimmed && !distractors.includes(c)) distractors.push(c);
+      }
+      // Fallback: add a mix of famous people from different fields
+      if (distractors.length === 0) {
+        const allFamous = [...authors, ...painters, ...composers];
+        for (const f of allFamous) if (f !== correctTrimmed && !distractors.includes(f)) distractors.push(f);
+      }
+    }
+
+    // For place-type proper names not caught above, add related places
+    if (cat === 'place' && distractors.length === 0) {
+      for (const p of [...planets, ...capitals, ...countries]) if (p !== correctTrimmed) distractors.push(p);
+    }
+  }
+
+  // Filter out empties, deduplicate, and limit to ~6
+  return distractors.filter(d => d && d.trim() && d !== correctTrimmed).slice(0, 6);
+}
+
+function collectWrongOptions(cardEntry, field, exclude) {
+  const excludeTrimmed = exclude.trim();
+  const excludeLen = excludeTrimmed.length;
+  const excludeType = classifyType(excludeTrimmed);
+  const excludeWords = new Set(excludeTrimmed.toLowerCase().split(/[\s\-_]+/).filter(w => w.length > 2));
+  const STOP_WORDS = new Set(['is','the','of','for','a','an','and','or','in','on','at','to','from','as','by','with','this','that','which','when','where','who','how','name','define']);
+  const excludeQWords = new Set(cardEntry.term.toLowerCase().split(/[\s\-\?',.!]+/).filter(w => w.length > 3 && !STOP_WORDS.has(w)));
+  // Extract question word (who/what/where/when/which/how) for structural matching
+  const excludeQWord = (cardEntry.term.toLowerCase().match(/^(who|what|where|when|which|how)\b/) || [''])[0];
+  const sameTypeSameSubject = [];
+  const sameSubjectDiffType = [];
+  const otherSubjectSameType = [];
+  const otherSubjectDiffType = [];
+  const seen = new Set();
+
+  // Tier 1: historically wrong answers (highest priority)
+  const historicallyWrong = [];
+  const histWrong = getHistoricallyWrong(cardEntry.term, cardEntry.definition, field, exclude);
+  for (const val of histWrong) {
+    if (!seen.has(val)) {
+      seen.add(val);
+      historicallyWrong.push({val, card: null});
+    }
+  }
+
+  for (const c of testQuestions) {
+    if (c.term === cardEntry.term && c.definition === cardEntry.definition) continue;
+    const val = c[field].trim();
+    if (val !== excludeTrimmed && !seen.has(val)) {
+      seen.add(val);
+      const valType = classifyType(val);
+      const sameSubject = c.subject && cardEntry.subject && c.subject === cardEntry.subject;
+      const sameType = valType === excludeType;
+      const entry = {val, card: c};
+      if (sameSubject && sameType) sameTypeSameSubject.push(entry);
+      else if (sameSubject && !sameType) sameSubjectDiffType.push(entry);
+      else if (!sameSubject && sameType) otherSubjectSameType.push(entry);
+      else otherSubjectDiffType.push(entry);
+    }
+  }
+
+  // Add generated content-relevant distractors (card: null, generated: true)
+  const generated = generateContentDistractors(excludeTrimmed, cardEntry);
+  for (const val of generated) {
+    if (!seen.has(val)) {
+      seen.add(val);
+      const valType = classifyType(val);
+      const sameType = valType === excludeType;
+      const entry = {val, card: null, generated: true, sameType: sameType};
+      if (sameType) sameTypeSameSubject.push(entry);  // same-type generated = high relevance, treat as tier 1
+      else sameSubjectDiffType.push(entry);           // diff-type generated = still relevant
+    }
+  }
+
+  function wordOverlap(val) {
+    const valWords = new Set(val.toLowerCase().split(/[\s\-_]+/).filter(w => w.length > 2));
+    let shared = 0;
+    for (const w of excludeWords) if (valWords.has(w)) shared++;
+    return shared;
+  }
+
+  function questionSim(entry) {
+    if (!entry.card) return 0;
+    const candWords = new Set(entry.card.term.toLowerCase().split(/[\s\-\?',.!]+/).filter(w => w.length > 3 && !STOP_WORDS.has(w)));
+    let shared = 0;
+    for (const w of excludeQWords) if (candWords.has(w)) shared++;
+    // Bonus for same question word (who/what/where/when/which/how)
+    const candQWord = (entry.card.term.toLowerCase().match(/^(who|what|where|when|which|how)\b/) || [''])[0];
+    if (candQWord && candQWord === excludeQWord) shared += 1;
+    return shared;
+  }
+
+  function score(entry) {
+    const val = entry.val;
+    let s = 0;
+    const valType = classifyType(val);
+    if (valType === excludeType) s += 40;           // type match — same format = more similar
+    // For proper-name type, boost if same semantic category (person vs place)
+    if (valType === 'proper-name' && excludeType === 'proper-name') {
+      if (semanticCategory(val) === semanticCategory(excludeTrimmed)) s += 50;
+    }
+    // Same subject bonus (topical relatedness)
+    if (entry.card && cardEntry.subject && entry.card.subject && entry.card.subject === cardEntry.subject) s += 15;
+    // Generated distractors are pre-filtered for content relevance to the correct answer
+    if (entry.generated) s += 40;
+    // Penalty: same type but mismatched semantic category (e.g. person name vs place name)
+    if (valType === excludeType && valType === 'proper-name' &&
+        semanticCategory(val) !== semanticCategory(excludeTrimmed)) s -= 25;
+    // Heavy penalty: person distractor from wrong field of work (writer on painter question)
+    if (valType === 'proper-name' && excludeType === 'proper-name' &&
+        semanticCategory(val) === 'person' && semanticCategory(excludeTrimmed) === 'person') {
+      const qf = questionField(cardEntry);
+      const vf = personField(val);
+      if (qf && vf && qf !== vf && vf !== 'other') s -= 60;
+    }
+    const lenDiff = Math.abs(val.length - excludeLen);
+    s += Math.max(0, 60 - lenDiff * 4);            // length similarity — closer length = more similar
+    s += wordOverlap(val) * 25;                    // shared words are strong relevance signal
+    s += charOverlap(excludeTrimmed, val) * 5;     // shared characters (format similarity)
+    s += questionSim(entry) * 8;                   // shared question topic words + question-word match (secondary)
+    return s;
+  }
+
+  // Sort all candidates by score — closeness to correct answer is the priority.
+  // Higher score = more similar in type, length, characters, and question topic.
+  const allOptions = [...sameTypeSameSubject, ...otherSubjectSameType, ...sameSubjectDiffType, ...otherSubjectDiffType];
+  allOptions.sort((a, b) => score(b) - score(a));
+
+  // Historically wrong answers always come first (proven distractors),
+  // then remaining slots filled by highest-scoring (closest) options
+  const need = testSettings.choiceCount - 1;
+  const result = [...historicallyWrong];
+  for (let i = 0; i < allOptions.length && result.length < need; i++) {
+    if (!result.some(r => r.val === allOptions[i].val)) {
+      result.push(allOptions[i]);
+    }
+  }
+
+  return result.slice(0, need).map(e => e.val).sort(() => Math.random() - 0.5);
+}
+
+function showTestQuestion() {
+  if (testQuestionIndex >= testQuestions.length) {
+    showTestResults();
+    return;
+  }
+
+  testTotal++;
+
+  // Get card and check if it has a subject
+  const card = testQuestions[testQuestionIndex];
+
+  // Determine direction based on settings
+  if (testSettings.direction === 'random') {
+    testMode = Math.random() < 0.5 ? 'term-to-def' : 'def-to-term';
+  } else {
+    testMode = testSettings.direction;
+  }
+
+  let questionText, correctAnswer, wrongOptions = [];
+  const numWrong = testSettings.choiceCount - 1;
+
+  if (testMode === 'term-to-def') {
+    questionText = card.term;
+    correctAnswer = card.definition;
+    wrongOptions = collectWrongOptions(card, 'definition', correctAnswer);
+  } else {
+    questionText = card.definition;
+    correctAnswer = card.term;
+    wrongOptions = collectWrongOptions(card, 'term', correctAnswer);
+  }
+
+  // If not enough same-subject options, reduce choices to available count rather than pad
+  if (wrongOptions.length < numWrong && wrongOptions.length > 0) {
+    wrongOptions = wrongOptions; // use what we have — fewer choices but all relevant
+  }
+
+  currentTestQuestion = { questionText, correctAnswer, wrongOptions, card };
+
+  // Always format questions as full sentences
+  let displayText = questionText;
+  if (!/\b(what|which|who|when|where|why|how|name|define)\b.*\?$/i.test(questionText)) {
+    displayText = 'What is ' + questionText + '?';
+  }
+
+  // Restore plain text display (in case innerHTML was set by showTestResults)
+  const questionTextEl = document.getElementById('question-text');
+  if (questionTextEl) {
+    questionTextEl.innerHTML = '';
+    questionTextEl.textContent = displayText;
+  }
+
+  // Show subject tag if enabled and the card has a subject
+  const subjectTag = document.getElementById('question-subject');
+  if (subjectTag) {
+    if (testSettings.showSubject && card.subject) {
+      const subjectColor = getSubjectColor(card.subject);
+      subjectTag.textContent = card.subject;
+      subjectTag.style.display = 'inline-block';
+      subjectTag.style.background = 'rgba(0,0,0,0.3)';
+      subjectTag.style.border = '1px solid ' + subjectColor;
+      subjectTag.style.color = subjectColor;
+    } else {
+      subjectTag.style.display = 'none';
+    }
+  }
+
+  const directionLabel = testMode === 'term-to-def' ? 'What is the Term?' : 'What is the Definition?';
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = directionLabel;
+
+  // Build options (shuffle if enabled)
+  const options = [correctAnswer, ...wrongOptions];
+  if (testSettings.shuffleAnswers) {
+    options.sort(() => Math.random() - 0.5);
+  }
+  const optionsContainer = document.getElementById('options-container');
+  optionsContainer.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt; // textContent auto-escapes HTML, no need for escapeHTML
+    btn.onclick = () => selectOption(opt, btn);
+    optionsContainer.appendChild(btn);
+  });
+
+  // Hide result banner
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('result-banner').className = 'result-banner';
+
+  document.getElementById('test-index').textContent = testQuestionIndex + 1;
+  document.getElementById('test-total').textContent = testQuestions.length;
+
+  // Start timer if enabled
+  startTimer();
+}
+
+function selectOption(selected, btn) {
+  if (!testActive) return;
+
+  const opts = document.querySelectorAll('.option-btn');
+  opts.forEach(b => {
+    b.disabled = true;
+    b.classList.add('disabled');
+  });
+
+  const isCorrect = selected === currentTestQuestion.correctAnswer;
+  btn.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+  stopTimer();
+
+  if (isCorrect) {
+    testScore++;
+    showResult('Correct!', 'correct');
+  } else {
+    showResult(`Incorrect. The correct answer was: "${currentTestQuestion.correctAnswer}"`, 'incorrect');
+    // Track wrong answer for repeat feature
+    if (testSettings.repeatWrong) {
+      wrongAnswers.push(currentTestQuestion.card);
+    }
+    // Record in test history for enhancing future multiple-choice
+    recordTestHistory(currentTestQuestion.card, selected, currentTestQuestion.correctAnswer, testMode);
+  }
+
+  testQuestionIndex++;
+
+  // Auto-advance: give more time for incorrect answers to study the correct answer
+  const advanceDelay = isCorrect ? 1500 : 5000;
+  setTimeout(() => {
+    showTestQuestion();
+  }, advanceDelay);
+}
+
+function getSubjectColor(subject) {
+  const colors = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
+  let hash = 0;
+  for (let i = 0; i < subject.length; i++) hash = (hash * 31 + subject.charCodeAt(i)) | 0;
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function startTimer() {
+  if (testSettings.timer <= 0) {
+    // Hide timer bar
+    const timerBar = document.getElementById('timer-bar');
+    if (timerBar) timerBar.style.display = 'none';
+    return;
+  }
+  testTimerRemaining = testSettings.timer;
+  const timerBar = document.getElementById('timer-bar');
+  const timerFill = document.getElementById('timer-fill');
+  const timerText = document.getElementById('timer-text');
+  if (timerBar) timerBar.style.display = 'block';
+  if (timerFill) timerFill.style.width = '100%';
+  if (timerText) timerText.textContent = testTimerRemaining + 's';
+
+  // Clear any existing interval
+  if (testTimerInterval) clearInterval(testTimerInterval);
+
+  testTimerInterval = setInterval(() => {
+    testTimerRemaining--;
+    if (timerText) timerText.textContent = testTimerRemaining + 's';
+    if (timerFill) timerFill.style.width = (testTimerRemaining / testSettings.timer * 100) + '%';
+
+    if (testTimerRemaining <= 5 && timerBar) timerBar.classList.add('timer-low');
+    else if (timerBar) timerBar.classList.remove('timer-low');
+
+    if (testTimerRemaining <= 0) {
+      clearInterval(testTimerInterval);
+      // Auto-advance on timeout (treat as incorrect)
+      const opts = document.querySelectorAll('.option-btn');
+      opts.forEach(b => { b.disabled = true; b.classList.add('disabled'); });
+      showResult('Time\'s up! The correct answer was: "' + currentTestQuestion.correctAnswer + '"', 'incorrect');
+      if (testSettings.repeatWrong) {
+        wrongAnswers.push(currentTestQuestion.card);
+      }
+      // Record in test history (timer-out treated as wrong answer)
+      recordTestHistory(currentTestQuestion.card, null, currentTestQuestion.correctAnswer, testMode);
+      testQuestionIndex++;
+      setTimeout(() => {
+        showTestQuestion();
+      }, 5000);
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (testTimerInterval) {
+    clearInterval(testTimerInterval);
+    testTimerInterval = null;
+  }
+  const timerBar = document.getElementById('timer-bar');
+  if (timerBar) {
+    timerBar.style.display = 'none';
+    timerBar.classList.remove('timer-low');
+  }
+}
+
+function showResult(message, type) {
+  const banner = document.getElementById('result-banner');
+  banner.textContent = message;
+  banner.className = 'result-banner ' + type;
+  banner.style.display = 'block';
+}
+
+function showTestResults() {
+  const percentage = Math.round((testScore / testTotal) * 100);
+  let grade = '';
+  if (percentage >= 90) grade = 'A';
+  else if (percentage >= 80) grade = 'B';
+  else if (percentage >= 70) grade = 'C';
+  else if (percentage >= 60) grade = 'D';
+  else grade = 'F';
+
+  // Update existing elements in-place (don't replace innerHTML to keep DOM intact)
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = 'Results';
+
+  const questionTextEl = document.getElementById('question-text');
+  if (questionTextEl) {
+    questionTextEl.innerHTML = `
+      <div style="text-align:center;">
+        <div style="font-size:1.2rem; margin-bottom:12px;">Your Score</div>
+        <div class="score">${testScore} / ${testTotal}</div>
+        <div style="font-size:2rem; font-weight:700; color: var(--accent); margin:8px 0;">${percentage}% - Grade ${grade}</div>
+      </div>
+    `;
+  }
+
+  const optionsContainer = document.getElementById('options-container');
+  if (optionsContainer) optionsContainer.innerHTML = '';
+
+  const banner = document.getElementById('result-banner');
+  if (banner) {
+    banner.style.display = 'none';
+    banner.className = 'result-banner';
+  }
+
+  // If repeat wrong answers is enabled and there are wrong answers, offer to retry
+  if (testSettings.repeatWrong && wrongAnswers.length > 0) {
+    const questionTextEl = document.getElementById('question-text');
+    if (questionTextEl) {
+      questionTextEl.innerHTML = `
+        <div style="text-align:center;">
+          <div style="font-size:1rem; margin-bottom:12px;">You got ${wrongAnswers.length} question(s) wrong.</div>
+          <button class="btn-primary" onclick="retryWrongAnswers()">Retry Wrong Answers</button>
+          <button class="btn-secondary" onclick="endTest()" style="margin-left:10px;">End Test</button>
+        </div>
+      `;
+    }
+  } else {
+    // No wrong answers or repeat disabled — show End Test button
+    const qte = document.getElementById('question-text');
+    if (qte) {
+      qte.innerHTML += '<div style="text-align:center;margin-top:16px;"><button class="btn-secondary" onclick="endTest()">End Test</button></div>';
+    }
+  }
+}
+
+function retryWrongAnswers() {
+  stopTimer();
+  testQuestionIndex = 0;
+  testActive = true;
+
+  // Use the wrong answers as the new test questions
+  testQuestions = wrongAnswers.slice().sort(() => Math.random() - 0.5);
+  testScore = 0;
+  testTotal = 0;
+  wrongAnswers = [];
+
+  // Update the question text display (remove retry buttons)
+  const qte = document.getElementById('question-text');
+  if (qte) qte.innerHTML = '';
+
+  // Restore label
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = 'Question';
+
+  document.getElementById('test-index').textContent = 0;
+  document.getElementById('test-total').textContent = testQuestions.length;
+
+  showTestQuestion();
+}
+
+function endTest() {
+  testActive = false;
+  stopTimer();
+  wrongAnswers = [];
+  document.getElementById('start-test-btn').style.display = 'inline-block';
+  document.getElementById('reset-test-btn').style.display = 'none';
+  const questionTextEl = document.getElementById('question-text');
+  if (questionTextEl) {
+    questionTextEl.innerHTML = 'Click Start Test to begin';
+    questionTextEl.textContent = 'Click Start Test to begin';
+  }
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = 'Question';
+  const container = document.getElementById('options-container');
+  if (container) container.innerHTML = '';
+  const subjectTag = document.getElementById('question-subject');
+  if (subjectTag) subjectTag.style.display = 'none';
+}
+
+function resetTest() {
+  testActive = false;
+  stopTimer();
+  testQuestionIndex = 0;
+  testScore = 0;
+  testTotal = 0;
+  currentTestQuestion = null;
+  wrongAnswers = [];
+  document.getElementById('start-test-btn').style.display = 'inline-block';
+  document.getElementById('reset-test-btn').style.display = 'none';
+
+  // Restore original question display (innerHTML was changed by showTestResults)
+  const questionTextEl = document.getElementById('question-text');
+  if (questionTextEl) {
+    questionTextEl.innerHTML = 'Click Start Test to begin';
+    questionTextEl.textContent = 'Click Start Test to begin';
+  }
+
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = 'Question';
+
+  const container = document.getElementById('options-container');
+  if (container) container.innerHTML = '';
+
+  const banner = document.getElementById('result-banner');
+  if (banner) {
+    banner.style.display = 'none';
+    banner.className = 'result-banner';
+  }
+
+  // Hide subject tag and timer
+  const subjectTag = document.getElementById('question-subject');
+  if (subjectTag) subjectTag.style.display = 'none';
+  stopTimer();
+
+  document.getElementById('test-index').textContent = '0';
+
+  // Restore settings panel to expanded state
+  document.getElementById('test-settings').style.display = 'block';
+  document.getElementById('settings-toggle').textContent = 'Hide';
+}
+
+// ---------- Import/Export ----------
+function exportJSON() {
+  if (flashcards.length === 0) {
+    alert('No flashcards to export.');
+    return;
+  }
+  document.getElementById('json-data').value = JSON.stringify(flashcards, null, 2);
+}
+
+function exportJSONBySubject() {
+  const filter = document.getElementById('export-subject-filter');
+  const subject = filter ? filter.value : 'all';
+  let toExport;
+  if (subject === 'all') {
+    toExport = flashcards;
+  } else {
+    toExport = flashcards.filter(card => (card.subject || 'General') === subject);
+  }
+  if (toExport.length === 0) {
+    alert('No flashcards found for the selected subject.');
+    return;
+  }
+  document.getElementById('json-data').value = JSON.stringify(toExport, null, 2);
+  const statusEl = document.getElementById('file-status');
+  if (statusEl) {
+    statusEl.textContent = `Exported ${toExport.length} card(s) for subject: ${subject}.`;
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--accent3)';
+  }
+}
+
+function updateExportDefaultSubject() {
+  const filter = document.getElementById('export-subject-filter');
+  const btn = document.getElementById('export-subject-btn');
+  if (!filter || !btn) return;
+  if (filter.value === 'all') {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = 'inline-block';
+  }
+}
+
+function updateImportExportSubjects() {
+  const subjects = getUniqueSubjects();
+  const exportFilter = document.getElementById('export-subject-filter');
+  const importDefault = document.getElementById('import-default-subject');
+
+  // Populate export subject filter (preserve selection)
+  if (exportFilter) {
+    const current = exportFilter.value;
+    exportFilter.innerHTML = '';
+    const allOpt = document.createElement('option');
+    allOpt.value = 'all';
+    allOpt.textContent = 'All Subjects';
+    if (current === 'all' || !current) allOpt.selected = true;
+    exportFilter.appendChild(allOpt);
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '─────────────────';
+    exportFilter.appendChild(sep);
+    subjects.forEach(subj => {
+      const opt = document.createElement('option');
+      opt.value = subj;
+      opt.textContent = '• ' + subj;
+      opt.selected = (subj === current);
+      opt.style.color = subjectColor(subj);
+      exportFilter.appendChild(opt);
+    });
+  }
+
+  // Populate import default subject (preserve selection)
+  if (importDefault) {
+    const current = importDefault.value;
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '─────────────────';
+    // Can't set color on options via innerHTML, rebuild with createElement
+    importDefault.innerHTML = '';
+    const inheritOpt = document.createElement('option');
+    inheritOpt.value = '';
+    inheritOpt.textContent = '— inherit from file —';
+    if (!current) inheritOpt.selected = true;
+    importDefault.appendChild(inheritOpt);
+    importDefault.appendChild(sep);
+    subjects.forEach(subj => {
+      const opt = document.createElement('option');
+      opt.value = subj;
+      opt.textContent = '• ' + subj;
+      opt.selected = (subj === current);
+      opt.style.color = subjectColor(subj);
+      importDefault.appendChild(opt);
+    });
+  }
+
+  // Show/hide the export-subject button
+  updateExportDefaultSubject();
+}
+
+function getImportDefaultSubject() {
+  const el = document.getElementById('import-default-subject');
+  return el ? el.value : '';
+}
+
+function importJSON() {
+  const raw = document.getElementById('json-data').value.trim();
+  if (!raw) {
+    alert('Please paste JSON data first.');
+    return;
+  }
+  try {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) throw new Error('Data must be an array.');
+    const valid = data.every(item => typeof item.term === 'string' && typeof item.definition === 'string');
+    if (!valid) throw new Error('Each card must have "term" and "definition" strings.');
+    const defaultSubject = getImportDefaultSubject();
+
+    // Subject field name aliases to detect
+    const subjectKeys = ['subject', 'category', 'topic', 'tag', 'class', 'subject_name', 'group', 'domain'];
+
+    const newCards = data.map(item => {
+      let subject = '';
+      // 1. Detect subject from known field name aliases
+      for (const key of subjectKeys) {
+        if (item[key] && typeof item[key] === 'string' && item[key].trim()) {
+          subject = item[key].trim();
+          break;
+        }
+      }
+      // 2. Detect #subject: X inline override in term or definition
+      const subjMatch = (item.term + '\n' + item.definition).match(/#subject:\s*(.+)$/i);
+      if (subjMatch) {
+        subject = subjMatch[1].trim();
+      }
+      // 3. Fall back to default subject dropdown, then 'General'
+      if (!subject) subject = defaultSubject || 'General';
+      return {
+        term: item.term.trim(),
+        definition: item.definition.trim(),
+        subject: subject
+      };
+    });
+    const before = flashcards.length;
+    flashcards = flashcards.concat(newCards);
+    saveData();
+    // Clear the textarea so the user knows import is done and can't accidentally re-import (creating duplicates)
+    document.getElementById('json-data').value = '';
+    alert(`Added ${newCards.length} card(s).
+Total: ${flashcards.length} flashcards (${before} before import).`);
+  } catch (e) {
+    alert('Import failed: ' + e.message);
+  }
+}
+
+function loadSampleData() {
+  const sample = [
+    { term: "What is the capital of France?", definition: "Paris", subject: "Geography" },
+    { term: "What is 2 + 2?", definition: "4", subject: "Math" },
+    { term: "Who wrote 'Romeo and Juliet'?", definition: "William Shakespeare", subject: "Literature" },
+    { term: "What is the chemical symbol for water?", definition: "H2O", subject: "Science" },
+    { term: "What planet is known as the Red Planet?", definition: "Mars", subject: "Science" },
+    { term: "Who painted the Mona Lisa?", definition: "Leonardo da Vinci", subject: "Art" },
+    { term: "What is the largest ocean on Earth?", definition: "The Pacific Ocean", subject: "Geography" },
+    { term: "In which year did World War II end?", definition: "1945", subject: "History" }
+  ];
+  if (flashcards.length > 0 && !confirm('This will replace all your current flashcards with sample data. Are you sure?')) return;
+  flashcards = sample;
+  hiddenSubjects.clear();
+  saveData();
+  document.getElementById('json-data').value = JSON.stringify(flashcards, null, 2);
+}
+
+// ---------- File Import ----------
+async function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('file-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'Processing...';
+  statusEl.style.color = 'var(--muted)';
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  try {
+    if (ext === 'json') {
+      const text = await file.text();
+      document.getElementById('json-data').value = text;
+      importJSON();
+      statusEl.textContent = `JSON file loaded (${file.name}).`;
+      statusEl.style.color = 'var(--accent3)';
+    } else if (ext === 'txt') {
+      const text = await file.text();
+      const defaultSubj = getImportDefaultSubject();
+      parseTextContent(text, file.name, defaultSubj);
+      statusEl.textContent = `Text file loaded (${file.name}). Parsed ${flashcards.length} total cards.`;
+      statusEl.style.color = 'var(--accent3)';
+    } else if (ext === 'csv') {
+      const text = await file.text();
+      const defaultSubj = getImportDefaultSubject();
+      parseCSV(text, file.name, defaultSubj);
+      statusEl.textContent = `CSV file loaded (${file.name}). Parsed ${flashcards.length} total cards.`;
+      statusEl.style.color = 'var(--accent3)';
+    } else if (ext === 'pdf') {
+      const text = await extractPDFText(file);
+      const defaultSubj = getImportDefaultSubject();
+      parseTextContent(text, file.name, defaultSubj);
+      statusEl.textContent = `PDF loaded (${file.name}). Extracted and parsed ${flashcards.length} total cards.`;
+      statusEl.style.color = 'var(--accent3)';
+    } else {
+      statusEl.textContent = `Unsupported file type: .${ext}`;
+      statusEl.style.color = 'var(--danger)';
+    }
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+    statusEl.style.color = 'var(--danger)';
+  }
+
+  // Clear the input so the same file can be re-selected
+  event.target.value = '';
+}
+
+function parseTextContent(text, sourceName, defaultSubject) {
+  // Strategy 1: "Term: Definition" or "Term - Definition" on each line
+  const colonSplit = text.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  const colonPairs = [];
+  const altLines = [];
+
+  for (const line of colonSplit) {
+    // Match "Term: Definition" or "Term - Definition" or "Q: ... / A: ..."
+    const colonMatch = line.match(/^(.{1,80}?)\s*[：:]\s*(.+)$/);
+    const dashMatch = line.match(/^(.{1,80}?)\s+[-–—–]\s+(.+)$/);
+    const qaMatch = line.match(/^([QA]\.?\s*)([：:]\s*)(.+)$/i) ||
+                    line.match(/^([QA]\.?\s*)(.+)$/i);
+
+    if (colonMatch && colonMatch[2]) {
+      colonPairs.push({ term: colonMatch[1].trim(), definition: colonMatch[2].trim() });
+    } else if (dashMatch && dashMatch[2]) {
+      colonPairs.push({ term: dashMatch[1].trim(), definition: dashMatch[2].trim() });
+    } else {
+      // Check for Q: / A: pairs
+      const isQuestion = /^Q[.\s:]?/i.test(line);
+      const isAnswer = /^A[.\s:]?/i.test(line);
+      if (isQuestion || isAnswer) {
+        // Will handle in Q&A mode below
+        colonPairs.push({ term: line, definition: '', _qa: true });
+      }
+      altLines.push(line);
+    }
+  }
+
+  if (colonPairs.length > 0) {
+    // Handle Q/A pairs: pair consecutive Q and A lines
+    const qaPairs = [];
+    let lastQ = null;
+    for (const p of colonPairs) {
+      if (p._qa && /^Q[.\s:]?/i.test(p.term)) {
+        lastQ = p.term;
+      } else if (p._qa && /^A[.\s:]?/i.test(p.term)) {
+        if (lastQ) {
+          qaPairs.push({ term: lastQ, definition: p.term });
+          lastQ = null;
+        }
+      } else if (!p._qa) {
+        qaPairs.push(p);
+      }
+    }
+    if (qaPairs.length > 0) {
+      flashcards = flashcards.concat(qaPairs);
+    } else {
+      flashcards = flashcards.concat(colonPairs.filter(p => !p._qa));
+    }
+  } else {
+    // Strategy 2: alternate lines (term on one line, definition on next)
+    const clean = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const newPairs = [];
+    for (let i = 0; i < clean.length - 1; i += 2) {
+      newPairs.push({ term: clean[i], definition: clean[i + 1] });
+    }
+    flashcards = flashcards.concat(newPairs);
+  }
+
+  // Apply default subject to any card that doesn't have one
+  const ds = defaultSubject || 'General';
+  flashcards.forEach(card => {
+    if (!card.subject) card.subject = ds;
+  });
+
+  saveData();
+}
+
+function parseCSV(text, sourceName, defaultSubject) {
+  const lines = text.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  // Detect delimiter (comma, tab, semicolon)
+  let delimiter = ',';
+  if (lines[0] && lines[0].includes('\t')) delimiter = '\t';
+  else if (lines[0] && lines[0].includes(';')) delimiter = ';';
+
+  // Simple CSV parsing with quoted fields support
+  const parseLine = (line) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === delimiter && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  // Skip header if it looks like one
+  let startIndex = 0;
+  const firstRow = parseLine(lines[0]);
+  if (firstRow[0].toLowerCase().includes('term') || firstRow[0].toLowerCase().includes('question')) {
+    startIndex = 1;
+  }
+
+  const newPairs = [];
+  for (let i = startIndex; i < lines.length; i++) {
+    const cols = parseLine(lines[i]);
+    if (cols.length >= 2 && cols[0] && cols[1]) {
+      newPairs.push({
+        term: cols[0],
+        definition: cols[1],
+        subject: cols[2] ? cols[2].trim() : (defaultSubject || 'General')
+      });
+    }
+  }
+
+  flashcards = flashcards.concat(newPairs);
+  saveData();
+}
+
+async function extractPDFText(file) {
+  // Dynamically load pdf.js from CDN
+  if (typeof window.pdfjsLib === 'undefined') {
+    const statusEl = document.getElementById('file-status');
+    statusEl.textContent = 'Loading PDF.js library...';
+    statusEl.style.display = 'block';
+
+    await loadPDFJS();
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdf = await loadingTask.promise;
+
+  const numPages = pdf.numPages;
+  let fullText = '';
+
+  for (let i = 1; i <= numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join('\n');
+    fullText += pageText + '\n';
+  }
+
+  return fullText;
+}
+
+function loadPDFJS() {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (window.pdfjsLib && pdfjsLib.getDocument) {
+      resolve();
+      return;
+    }
+
+    // Try multiple CDNs for reliability
+    const cdns = [
+      {
+        name: 'jsdelivr',
+        url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js',
+        worker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js'
+      },
+      {
+        name: 'cdnjs',
+        url: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js',
+        worker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js'
+      }
+    ];
+
+    let cdnIndex = 0;
+
+    function tryLoad() {
+      if (cdnIndex >= cdns.length) {
+        reject(new Error('Failed to load PDF.js from all CDN sources. PDF import requires internet access.'));
+        return;
+      }
+
+      const source = cdns[cdnIndex];
+      const statusEl = document.getElementById('file-status');
+      statusEl.textContent = `Loading PDF.js from ${source.name}...`;
+
+      const script = document.createElement('script');
+      script.src = source.url;
+      script.onload = () => {
+        if (typeof pdfjsLib === 'undefined') {
+          // Script loaded but pdfjsLib not defined - try next CDN
+          cdnIndex++;
+          tryLoad();
+          return;
+        }
+        // Set worker
+        if (pdfjsLib.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = source.worker;
+        }
+        resolve();
+      };
+      script.onerror = () => {
+        // Try next CDN
+        cdnIndex++;
+        tryLoad();
+      };
+      document.head.appendChild(script);
+    }
+
+    tryLoad();
+  });
+}
+
+// ---------- Init ----------
+updateCardCount();
+updateSubjectQuickPick();
+populateSubjectFilters();
+updateImportExportSubjects();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (document.querySelector('#study-tab').classList.contains('active')) {
+    if (e.key === ' ') { e.preventDefault(); flipCard(); }
+    if (e.key === 'ArrowLeft') prevCard();
+    if (e.key === 'ArrowRight') nextCard();
+    if (e.key === 'k' || e.key === 'K') markKnown();
+    if (e.key === 'u' || e.key === 'U') markUnknown();
+  }
+  if (document.querySelector('#test-tab').classList.contains('active') && e.key === 'Enter') {
+    // Could add submit on Enter
+  }
+});
+</script>
+</body>
+</html>

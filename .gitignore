@@ -1,0 +1,5 @@
+*~
+.DS_Store
+Thumbs.db
+_test_data.json
+*.tmp
