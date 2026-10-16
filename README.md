@@ -36,6 +36,13 @@ The multiple-choice distractor generation uses two strategies:
 - Optional timer per question
 - Random or fixed question direction
 
+## Live Demo
+
+**Try it online**: https://darrel-png.github.io/flashcard-maker/
+
+Or run locally:
+1. Open `flashcard-maker.html` in any modern browser
+
 ## Usage
 
 1. Open `flashcard-maker.html` in any modern browser
