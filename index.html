@@ -958,6 +958,33 @@
       <span style="color: var(--accent);">.pdf</span> — text extracted via pdf.js (loads on demand);
       <span style="color: var(--accent);">.json</span> — same format as above.
     </p>
+
+    <!-- Share Link Generation -->
+    <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <h3 style="color: var(--accent); margin-bottom: 4px;">Share Questions via Link</h3>
+      <p class="hint">Generate a shareable link to send flashcards to another user. They open the link and the app imports the cards automatically.</p>
+
+      <div style="margin-top: 10px;">
+        <label for="share-subject-filter">Share by subject:</label>
+        <select id="share-subject-filter" onchange="updateShareButton()">
+          <option value="all">All Subjects</option>
+        </select>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <button class="btn-primary" id="share-btn" onclick="generateShareLink()" style="display:none;">Generate Share Link</button>
+      </div>
+
+      <div id="share-link-container" style="display: none; margin-top: 12px;">
+        <label>Shareable link (click button to copy):</label>
+        <div style="display: flex; gap: 4px; margin-top: 4px;">
+          <input type="text" id="share-link" class="json-area" readonly style="font-size: 0.75rem; resize: none;" rows="3" />
+          <button class="btn-secondary" onclick="copyShareLink()" style="white-space: nowrap; align-self: stretch;">Copy</button>
+        </div>
+        <button class="btn-secondary" onclick="clearShareLink()" style="margin-top: 6px; font-size: 0.75rem; padding: 4px 8px;">Clear</button>
+        <p class="hint" style="margin-top: 4px; font-size: 0.75rem;">Anyone with this link can import your flashcards. The link encodes all cards for the selected subject(s) as a compact base64 string.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Edit Flashcard Modal -->
@@ -2764,6 +2791,30 @@ function updateImportExportSubjects() {
     });
   }
 
+  // Populate share subject filter (preserve selection)
+  const shareFilter = document.getElementById('share-subject-filter');
+  if (shareFilter) {
+    const shareCurrent = shareFilter.value;
+    shareFilter.innerHTML = '';
+    const shareAllOpt = document.createElement('option');
+    shareAllOpt.value = 'all';
+    shareAllOpt.textContent = 'All Subjects';
+    if (shareCurrent === 'all' || !shareCurrent) shareAllOpt.selected = true;
+    shareFilter.appendChild(shareAllOpt);
+    const shareSep = document.createElement('option');
+    shareSep.disabled = true;
+    shareSep.textContent = '─────────────────';
+    shareFilter.appendChild(shareSep);
+    subjects.forEach(subj => {
+      const opt = document.createElement('option');
+      opt.value = subj;
+      opt.textContent = '• ' + subj;
+      opt.selected = (subj === shareCurrent);
+      opt.style.color = subjectColor(subj);
+      shareFilter.appendChild(opt);
+    });
+  }
+
   // Show/hide the export-subject button
   updateExportDefaultSubject();
 }
@@ -3104,11 +3155,86 @@ function loadPDFJS() {
   });
 }
 
+// ---------- Share via Link ----------
+function generateShareLink() {
+  const filter = document.getElementById('share-subject-filter');
+  const subject = filter ? filter.value : 'all';
+  let toShare;
+  if (subject === 'all') {
+    toShare = flashcards;
+  } else {
+    toShare = flashcards.filter(card => (card.subject || 'General') === subject);
+  }
+  if (toShare.length === 0) {
+    alert('No flashcards found for the selected subject.');
+    return;
+  }
+  // Encode as base64 URL parameter (encodeURIComponent + btoa for Unicode safety)
+  const jsonStr = JSON.stringify(toShare);
+  const encoded = btoa(encodeURIComponent(jsonStr));
+  const baseUrl = window.location.origin + window.location.pathname;
+  const shareLink = baseUrl + '?import=' + encoded;
+  document.getElementById('share-link').value = shareLink;
+  document.getElementById('share-link-container').style.display = 'block';
+  const statusEl = document.getElementById('file-status');
+  if (statusEl) {
+    statusEl.textContent = 'Generated share link with ' + toShare.length + ' card(s).';
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--accent)';
+  }
+}
+
+function copyShareLink() {
+  const linkInput = document.getElementById('share-link');
+  linkInput.select();
+  linkInput.setSelectionRange(0, linkInput.value.length);
+  document.execCommand('copy');
+  alert('Share link copied to clipboard!');
+}
+
+function clearShareLink() {
+  document.getElementById('share-link').value = '';
+  document.getElementById('share-link-container').style.display = 'none';
+  const statusEl = document.getElementById('file-status');
+  if (statusEl) statusEl.style.display = 'none';
+}
+
+function updateShareButton() {
+  const filter = document.getElementById('share-subject-filter');
+  const btn = document.getElementById('share-btn');
+  if (!filter || !btn) return;
+  btn.style.display = 'inline-block';
+}
+
+function handleSharedLink() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const importData = urlParams.get('import');
+  if (!importData) return;
+  try {
+    const decoded = decodeURIComponent(atob(importData));
+    const data = JSON.parse(decoded);
+    if (!Array.isArray(data)) throw new Error('Data must be an array.');
+    const valid = data.every(item => typeof item.term === 'string' && typeof item.definition === 'string');
+    if (!valid) throw new Error('Each card must have "term" and "definition" strings.');
+    if (confirm('This link contains ' + data.length + ' flashcard(s). Import them?')) {
+      flashcards = flashcards.concat(data);
+      saveData();
+      alert('Imported ' + data.length + ' card(s) from share link!\nTotal: ' + flashcards.length + ' flashcards.');
+    }
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+  } catch (e) {
+    alert('Failed to import from share link: ' + e.message);
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+  }
+}
+
 // ---------- Init ----------
 updateCardCount();
 updateSubjectQuickPick();
 populateSubjectFilters();
 updateImportExportSubjects();
+updateShareButton();
+handleSharedLink();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
