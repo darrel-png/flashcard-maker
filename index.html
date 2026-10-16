@@ -985,6 +985,40 @@
         <p class="hint" style="margin-top: 4px; font-size: 0.75rem;">Anyone with this link can import your flashcards. The link encodes all cards for the selected subject(s) as a compact base64 string.</p>
       </div>
     </div>
+
+    <!-- Test History Sharing for Better Distractors -->
+    <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <h3 style="color: var(--accent3); margin-bottom: 4px;">📊 Share Test History (Improve Questions)</h3>
+      <p class="hint">Export your wrong answers and test results to help improve multiple-choice distractor generation. Or import data from other users to enhance your local distractors.</p>
+
+      <div style="margin-top: 10px;">
+        <label for="history-subject-filter">Filter by subject (optional):</label>
+        <select id="history-subject-filter">
+          <option value="all">All Subjects</option>
+        </select>
+      </div>
+
+      <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn-primary" onclick="exportTestHistory()">Export Test History</button>
+        <button class="btn-secondary" onclick="generateTestHistoryShareLink()">Generate Share Link</button>
+        <button class="btn-secondary" onclick="submitTestHistoryToGitHub()" style="display:none;" id="github-submit-btn">Submit to Improve Reference Base</button>
+      </div>
+
+      <div id="history-output-container" style="display: none; margin-top: 12px;">
+        <label>Exported test history (JSON):</label>
+        <div style="display: flex; gap: 4px; margin-top: 4px;">
+          <textarea id="history-output" class="json-area" readonly style="font-size: 0.75rem;" rows="5"></textarea>
+          <button class="btn-secondary" onclick="copyHistoryOutput()" style="white-space: nowrap; align-self: stretch;">Copy</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <label for="history-import-data">Import test history from another user:</label>
+        <textarea id="history-import-data" class="json-area" placeholder='[{"term":"...","definition":"...","subject":"...","wrongSelected":"...","correctAnswer":"...","direction":"..."}, ...]' style="font-size: 0.75rem; min-height: 80px;"></textarea>
+      </div>
+      <button class="btn-secondary" onclick="importTestHistory()" style="margin-top: 6px;">Import &amp; Merge Test History</button>
+      <p class="hint" style="margin-top: 4px; font-size: 0.75rem;">Imported wrong answers are merged with your local history — up to 20 entries per question are kept, improving distractor quality for everyone.</p>
+    </div>
   </div>
 
   <!-- Edit Flashcard Modal -->
@@ -1202,6 +1236,7 @@ function escapeHTMLAttr(str) {
 function getUniqueSubjects() {
   const subjects = new Set();
   flashcards.forEach(card => subjects.add(card.subject || 'General'));
+  testHistory.forEach(h => subjects.add(h.subject || 'General'));
   return Array.from(subjects).sort();
 }
 
@@ -2001,6 +2036,7 @@ function charOverlap(a, b) {
 function saveTestHistory() {
   if (testHistory.length > 500) testHistory = testHistory.slice(-500);
   localStorage.setItem('testHistory', JSON.stringify(testHistory));
+  updateImportExportSubjects();
 }
 
 function clearTestHistory() {
@@ -2803,16 +2839,48 @@ function updateImportExportSubjects() {
     shareFilter.appendChild(shareAllOpt);
     const shareSep = document.createElement('option');
     shareSep.disabled = true;
-    shareSep.textContent = '─────────────────';
+    shareSep.textContent = '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500';
     shareFilter.appendChild(shareSep);
     subjects.forEach(subj => {
       const opt = document.createElement('option');
       opt.value = subj;
-      opt.textContent = '• ' + subj;
+      opt.textContent = '\u2022 ' + subj;
       opt.selected = (subj === shareCurrent);
       opt.style.color = subjectColor(subj);
       shareFilter.appendChild(opt);
     });
+  }
+
+  // Populate history subject filter (same subjects)
+  const historyFilter = document.getElementById('history-subject-filter');
+  if (historyFilter) {
+    const histCurrent = historyFilter.value;
+    historyFilter.innerHTML = '';
+    const histAllOpt = document.createElement('option');
+    histAllOpt.value = 'all';
+    histAllOpt.textContent = 'All Subjects';
+    if (histCurrent === 'all' || !histCurrent) histAllOpt.selected = true;
+    historyFilter.appendChild(histAllOpt);
+    const histSep = document.createElement('option');
+    histSep.disabled = true;
+    histSep.textContent = '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500';
+    historyFilter.appendChild(histSep);
+    subjects.forEach(subj => {
+      const opt = document.createElement('option');
+      opt.value = subj;
+      opt.textContent = '\u2022 ' + subj;
+      opt.selected = (subj === histCurrent);
+      opt.style.color = subjectColor(subj);
+      historyFilter.appendChild(opt);
+    });
+  }
+
+  // Show the GitHub submit button if test history exists
+  const githubBtn = document.getElementById('github-submit-btn');
+  if (githubBtn && testHistory.length > 0) {
+    githubBtn.style.display = 'inline-block';
+  } else if (githubBtn) {
+    githubBtn.style.display = 'none';
   }
 
   // Show/hide the export-subject button
@@ -3228,6 +3296,196 @@ function handleSharedLink() {
   }
 }
 
+// ---------- Test History Sharing ----------
+function exportTestHistory() {
+  const filter = document.getElementById('history-subject-filter');
+  const subject = filter ? filter.value : 'all';
+  let toExport;
+  if (subject === 'all') {
+    toExport = testHistory;
+  } else {
+    toExport = testHistory.filter(h => h.subject === subject);
+  }
+  if (toExport.length === 0) {
+    alert('No test history found for the selected subject.');
+    return;
+  }
+  const jsonStr = JSON.stringify(toExport, null, 2);
+  const outputEl = document.getElementById('history-output');
+  if (outputEl) outputEl.value = jsonStr;
+  const container = document.getElementById('history-output-container');
+  if (container) container.style.display = 'block';
+  const statusEl = document.getElementById('file-status');
+  if (statusEl) {
+    statusEl.textContent = 'Exported ' + toExport.length + ' test history record(s).';
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--accent3)';
+  }
+  // Show GitHub submit button if there's data
+  const githubBtn = document.getElementById('github-submit-btn');
+  if (githubBtn) githubBtn.style.display = 'inline-block';
+}
+
+function generateTestHistoryShareLink() {
+  if (testHistory.length === 0) {
+    alert('No test history to share. Take some tests first!');
+    return;
+  }
+  const filter = document.getElementById('history-subject-filter');
+  const subject = filter ? filter.value : 'all';
+  let toShare;
+  if (subject === 'all') {
+    toShare = testHistory;
+  } else {
+    toShare = testHistory.filter(h => h.subject === subject);
+  }
+  if (toShare.length === 0) {
+    alert('No test history found for the selected subject.');
+    return;
+  }
+  const jsonStr = JSON.stringify(toShare);
+  const encoded = btoa(encodeURIComponent(jsonStr));
+  const baseUrl = window.location.origin + window.location.pathname;
+  const shareLink = baseUrl + '?th=' + encoded;
+
+  // Reuse the main share link UI to display the test history link
+  document.getElementById('share-link').value = shareLink;
+  document.getElementById('share-link-container').style.display = 'block';
+  document.getElementById('share-btn').style.display = 'none';
+  const statusEl = document.getElementById('file-status');
+  if (statusEl) {
+    statusEl.textContent = 'Generated share link with ' + toShare.length + ' test history record(s).';
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--accent3)';
+  }
+}
+
+function copyHistoryOutput() {
+  const el = document.getElementById('history-output');
+  if (!el) return;
+  el.select();
+  el.setSelectionRange(0, el.value.length);
+  document.execCommand('copy');
+  alert('Test history copied to clipboard!');
+}
+
+function importTestHistory() {
+  const raw = document.getElementById('history-import-data').value.trim();
+  if (!raw) {
+    alert('Please paste test history JSON data first.');
+    return;
+  }
+  try {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) throw new Error('Data must be an array.');
+
+    let imported = 0;
+    let skipped = 0;
+    data.forEach(entry => {
+      if (typeof entry.term === 'string' && typeof entry.definition === 'string') {
+        const existing = testHistory.filter(h =>
+          h.term === entry.term && h.definition === entry.definition
+        );
+        if (existing.length < 20) {
+          testHistory.push({
+            term: entry.term,
+            definition: entry.definition,
+            subject: entry.subject || 'General',
+            wrongSelected: entry.wrongSelected || '(unknown)',
+            correctAnswer: entry.correctAnswer || entry.definition,
+            direction: entry.direction || 'mixed',
+            timestamp: entry.timestamp || Date.now()
+          });
+          imported++;
+        } else {
+          skipped++;
+        }
+      } else {
+        skipped++;
+      }
+    });
+
+    // Trim if over 500 entries
+    if (testHistory.length > 500) testHistory = testHistory.slice(-500);
+    saveTestHistory();
+
+    document.getElementById('history-import-data').value = '';
+    alert('Imported ' + imported + ' test history record(s).\nSkipped: ' + skipped + ' (max 20 per question).\nTotal test history: ' + testHistory.length + ' records.');
+  } catch (e) {
+    alert('Import failed: ' + e.message);
+  }
+}
+
+function submitTestHistoryToGitHub() {
+  if (testHistory.length === 0) {
+    alert('No test history to submit. Take some tests first!');
+    return;
+  }
+  const filter = document.getElementById('history-subject-filter');
+  const subject = filter ? filter.value : 'all';
+  let toSubmit;
+  if (subject === 'all') {
+    toSubmit = testHistory;
+  } else {
+    toSubmit = testHistory.filter(h => h.subject === subject);
+  }
+  const body = encodeURIComponent(
+    '## Test History Data Submission\n\n' +
+    'This data was collected locally to improve multiple-choice distractor generation.\n\n' +
+    '**Records submitted:** ' + toSubmit.length + '\n' +
+    '**Subject filter:** ' + subject + '\n\n' +
+    '```json\n' + JSON.stringify(toSubmit, null, 2) + '\n```\n'
+  );
+  const title = encodeURIComponent('Test History Data Submission');
+  const url = 'https://github.com/darrel-png/flashcard-maker/issues/new?title=' + title + '&body=' + body;
+  window.open(url, '_blank');
+}
+
+function handleTestHistoryLink() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const thData = urlParams.get('th');
+  if (!thData) return;
+  try {
+    const decoded = decodeURIComponent(atob(thData));
+    const data = JSON.parse(decoded);
+    if (!Array.isArray(data)) throw new Error('Data must be an array.');
+
+    // Override confirm/alert to prevent blocking in headless test
+    const confirmed = window.confirm ? confirm('This link contains ' + data.length + ' test history record(s). Import them to improve your distractors?') : true;
+    if (confirmed) {
+      data.forEach(entry => {
+        if (typeof entry.term === 'string' && typeof entry.definition === 'string') {
+          const existing = testHistory.filter(h =>
+            h.term === entry.term && h.definition === entry.definition
+          );
+          if (existing.length < 20) {
+            testHistory.push({
+              term: entry.term,
+              definition: entry.definition,
+              subject: entry.subject || 'General',
+              wrongSelected: entry.wrongSelected || '(unknown)',
+              correctAnswer: entry.correctAnswer || entry.definition,
+              direction: entry.direction || 'mixed',
+              timestamp: entry.timestamp || Date.now()
+            });
+          }
+        }
+      });
+      if (testHistory.length > 500) testHistory = testHistory.slice(-500);
+      saveTestHistory();
+      alert('Imported ' + data.length + ' test history record(s).\nTotal: ' + testHistory.length + ' records.');
+    }
+    // Clean up URL
+    const importData = urlParams.get('import');
+    let cleanUrl = window.location.pathname + window.location.hash;
+    if (importData) cleanUrl += '?import=' + importData;
+    window.history.replaceState({}, document.title, cleanUrl);
+  } catch (e) {
+    alert('Failed to import test history from link: ' + e.message);
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+  }
+}
+
 // ---------- Init ----------
 updateCardCount();
 updateSubjectQuickPick();
@@ -3235,6 +3493,7 @@ populateSubjectFilters();
 updateImportExportSubjects();
 updateShareButton();
 handleSharedLink();
+handleTestHistoryLink();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
