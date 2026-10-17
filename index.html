@@ -669,6 +669,7 @@
           <span>Total cards: <span class="count" id="card-count">0</span></span>
           <div style="display:flex; align-items:center; gap:8px;">
             <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Ungroup</button>
+            <button class="btn-sm btn-primary" onclick="randomizeCardOrder()" id="randomize-btn">🔀 Randomize</button>
             <button class="btn-sm btn-secondary" onclick="toggleCreateForm()" id="create-form-hide-btn">Hide Form</button>
             <button class="btn-sm btn-danger" onclick="clearAll()">Clear All</button>
           </div>
@@ -1858,6 +1859,23 @@ function shuffleStudyCards() {
   document.getElementById('flashcard').classList.remove('flipped');
   renderStudyCard();
   updateStudyProgress();
+  saveData();
+}
+
+function randomizeCardOrder() {
+  if (flashcards.length < 2) {
+    alert('Need at least 2 cards to randomize.');
+    return;
+  }
+  // Fisher-Yates shuffle
+  for (let i = flashcards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+  }
+  // Clear table selection state
+  selectedRows.clear();
+  // Re-render table and persist
+  renderDataTable();
   saveData();
 }
 
