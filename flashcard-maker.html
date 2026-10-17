@@ -302,6 +302,57 @@
     box-shadow: 0 0 15px rgba(255, 68, 170, 0.3);
   }
   .option-btn.disabled { cursor: default; }
+  /* Matching grid styles */
+  .matching-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .matching-row {
+    display: contents;
+  }
+  .matching-term-header, .matching-def-header {
+    padding: 8px 12px;
+    background: var(--card-alt);
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: center;
+  }
+  .matching-term {
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+  }
+  .matching-select select {
+    width: 100%;
+    padding: 8px;
+    background: var(--card-alt);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .matching-select select:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+  .matching-select select.correct {
+    border-color: var(--accent3);
+    background: rgba(255, 255, 0, 0.1);
+  }
+  .matching-select select.incorrect {
+    border-color: var(--danger);
+    background: rgba(255, 68, 170, 0.1);
+  }
   .result-banner {
     margin: 16px 0; padding: 14px 20px; border-radius: 8px;
     text-align: center; font-weight: 600; display: none;
@@ -848,8 +899,29 @@
       </div>
       <div class="row">
         <div class="form-group">
-          <label for="test-timer">Timer per question</label>
-          <select id="test-timer">
+          <label for="question-type">Question type</label>
+          <select id="question-type" onchange="toggleMatchingSetSize()">
+            <option value="multiple-choice" selected>Multiple Choice</option>
+            <option value="matching">Matching</option>
+            <option value="identification">Identification</option>
+          </select>
+        </div>
+        <div class="form-group" id="matching-set-size-group" style="display:none;">
+          <label for="matching-set-size">Matching set size</label>
+          <select id="matching-set-size">
+            <option value="3">3 pairs</option>
+            <option value="4">4 pairs</option>
+            <option value="5" selected>5 pairs</option>
+            <option value="6">6 pairs</option>
+            <option value="8">8 pairs</option>
+            <option value="10">10 pairs</option>
+          </select>
+        </div>
+        </div>
+        <div class="row">
+        <div class="form-group">
+        <label for="test-timer">Timer per question</label>
+        <select id="test-timer">
             <option value="0" selected>None</option>
             <option value="5">5 seconds</option>
             <option value="10">10 seconds</option>
@@ -1079,6 +1151,10 @@ let testTotal = 0;
 let testTimerInterval = null;
 let testTimerRemaining = 0;
 let wrongAnswers = [];
+// Matching question state
+let matchingCards = [];
+let matchingAnswers = {};
+let matchingSetSize = 5;
 // Test history: tracks which wrong answers were actually selected, to enhance future multiple-choice
 // Each entry: { term, definition, subject, wrongSelected, correctAnswer }
 let testHistory = JSON.parse(localStorage.getItem('testHistory') || '[]');
@@ -1911,7 +1987,9 @@ let testSettings = {
   shuffleAnswers: true,
   timer: 0,
   showSubject: false,
-  repeatWrong: true
+  repeatWrong: true,
+  questionType: 'multiple-choice',
+  matchingSetSize: 5
 };
 
 function getTestSettings() {
@@ -1922,7 +2000,9 @@ function getTestSettings() {
     shuffleAnswers: document.getElementById('shuffle-answers').value === 'true',
     timer: parseInt(document.getElementById('test-timer').value),
     showSubject: document.getElementById('show-subject').value === 'true',
-    repeatWrong: document.getElementById('repeat-wrong').value === 'true'
+    repeatWrong: document.getElementById('repeat-wrong').value === 'true',
+    questionType: document.getElementById('question-type').value,
+    matchingSetSize: parseInt(document.getElementById('matching-set-size')?.value || '5')
   };
 }
 
@@ -1935,6 +2015,17 @@ function toggleSettings() {
   } else {
     panel.style.display = 'none';
     btn.textContent = 'Show';
+  }
+}
+
+function toggleMatchingSetSize() {
+  const qType = document.getElementById('question-type');
+  const group = document.getElementById('matching-set-size-group');
+  if (!group) return;
+  if (qType && qType.value === 'matching') {
+    group.style.display = 'block';
+  } else {
+    group.style.display = 'none';
   }
 }
 
@@ -1961,11 +2052,21 @@ function startTest() {
   testTotal = 0;
   testQuestionIndex = 0;
   wrongAnswers = [];
+  matchingCards = [];
+  matchingAnswers = {};
 
   // Use subject-filtered cards
   testQuestions = getFilteredFlashcards('test-subject-filter').sort(() => Math.random() - 0.5);
   // Apply question count limit
-  const maxQ = testSettings.questionCount >= 200 ? testQuestions.length : Math.min(testSettings.questionCount, testQuestions.length);
+  let maxQ = testSettings.questionCount >= 200 ? testQuestions.length : Math.min(testSettings.questionCount, testQuestions.length);
+  
+  // For matching type, each question is a set of cards — adjust maxQ accordingly
+  if (testSettings.questionType === 'matching') {
+    const setSize = testSettings.matchingSetSize;
+    const maxSets = Math.min(maxQ, Math.floor(testQuestions.length / setSize));
+    maxQ = maxSets * setSize;
+  }
+  
   if (testQuestions.length > maxQ) testQuestions = testQuestions.slice(0, maxQ);
 
   document.getElementById('start-test-btn').style.display = 'none';
@@ -2396,6 +2497,16 @@ function showTestQuestion() {
     return;
   }
 
+  // Dispatch to question-type-specific handler
+  if (testSettings.questionType === 'matching') {
+    showMatchingQuestion();
+    return;
+  }
+  if (testSettings.questionType === 'identification') {
+    showIdentificationQuestion();
+    return;
+  }
+
   testTotal++;
 
   // Get card and check if it has a subject
@@ -2486,6 +2597,224 @@ function showTestQuestion() {
   startTimer();
 }
 
+// ---------- Matching Question Type ----------
+function showMatchingQuestion() {
+  matchingSetSize = testSettings.matchingSetSize;
+  const setCards = testQuestions.slice(testQuestionIndex, testQuestionIndex + matchingSetSize);
+  if (setCards.length === 0) {
+    showTestResults();
+    return;
+  }
+  // Pad with repeated cards if needed
+  while (setCards.length < matchingSetSize) {
+    setCards.push(testQuestions[testQuestionIndex + (setCards.length % (testQuestionIndex + 1))]);
+  }
+
+  matchingCards = setCards;
+  matchingAnswers = {};
+  testTotal++;  // One point per matching set
+
+  // Shuffle definitions for the dropdown options
+  const defs = setCards.map(c => c.definition);
+  const shuffledDefs = defs.slice().sort(() => Math.random() - 0.5);
+
+  // Build matching grid
+  const questionTextEl = document.getElementById('question-text');
+  const optionsContainer = document.getElementById('options-container');
+
+  let gridHtml = '<div class="matching-grid"><div class="matching-row"><div class="matching-term-header">Term / Question</div><div class="matching-def-header">Select Definition</div></div>';
+  setCards.forEach((card, i) => {
+    const cardKey = card.term + '||' + card.definition;
+    gridHtml += '<div class="matching-row"><div class="matching-term">' + escapeHTML(card.term) + '</div><div class="matching-select"><select id="match-' + i + '"><option value="">— Choose —</option>';
+    shuffledDefs.forEach((def, j) => {
+      gridHtml += '<option value="' + j + '">' + escapeHTML(def) + '</option>';
+    });
+    gridHtml += '</select></div></div>';
+  });
+  gridHtml += '</div>';
+
+  optionsContainer.innerHTML = gridHtml + '<div style="margin-top:12px;"><button class="btn-primary" onclick="submitMatchingAnswers()">Submit Matches</button></div>';
+
+  questionTextEl.innerHTML = '';
+  questionTextEl.textContent = 'Match each term to its definition:';
+  const numSets = Math.ceil(testQuestions.length / matchingSetSize);
+  document.getElementById('test-index').textContent = Math.floor(testQuestionIndex / matchingSetSize) + 1;
+  document.getElementById('test-total').textContent = numSets;
+
+  const subjectTag = document.getElementById('question-subject');
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = 'Matching';
+  if (subjectTag) subjectTag.style.display = 'none';
+
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('result-banner').className = 'result-banner';
+
+  startTimer();
+}
+
+function submitMatchingAnswers() {
+  if (!testActive) return;
+  stopTimer();
+
+  const defs = matchingCards.map(c => c.definition);
+  const shuffledDefs = [];
+  // Reconstruct the shuffled order from the first dropdown
+  const firstSelect = document.getElementById('match-0');
+  if (firstSelect) {
+    for (let i = 1; i < firstSelect.options.length; i++) {
+      shuffledDefs.push(firstSelect.options[i].text);
+    }
+  }
+
+  const correctAnswers = matchingCards.map(c => c.definition);
+  let correctCount = 0;
+  let incorrectCards = [];
+
+  matchingCards.forEach((card, i) => {
+    const select = document.getElementById('match-' + i);
+    const selectedIdx = select ? parseInt(select.value) : -1;
+    const userAnswer = selectedIdx >= 0 ? defs[selectedIdx] : null;
+    const isCorrect = userAnswer === card.definition;
+
+    if (isCorrect) {
+      correctCount++;
+      select.classList.add('correct');
+    } else {
+      incorrectCards.push({card: card, wrongSelected: userAnswer, correctAnswer: card.definition});
+      select.classList.add('incorrect');
+      // Highlight the correct option
+      if (select) {
+        for (let opt of select.options) {
+          if (opt.text === card.definition) {
+            opt.style.background = 'rgba(0, 255, 0, 0.2)';
+          }
+        }
+      }
+    }
+  });
+
+  const isAllCorrect = correctCount === matchingSetSize;
+  if (correctCount === matchingSetSize) {
+    testScore++;
+    showResult('All ' + matchingSetSize + ' matches correct!', 'correct');
+  } else {
+    showResult(correctCount + '/' + matchingSetSize + ' matched correctly. The correct answers are highlighted.', 'incorrect');
+    incorrectCards.forEach(item => {
+      if (testSettings.repeatWrong) wrongAnswers.push(item.card);
+      recordTestHistory(item.card, item.wrongSelected, item.correctAnswer, 'term-to-def');
+    });
+  }
+
+  testQuestionIndex += matchingSetSize;
+
+  // Disable selects
+  matchingCards.forEach((_, i) => {
+    const select = document.getElementById('match-' + i);
+    if (select) select.disabled = true;
+  });
+
+  const advanceDelay = isAllCorrect ? 1500 : 5000;
+  setTimeout(() => {
+    showTestQuestion();
+  }, advanceDelay);
+}
+
+// ---------- Identification Question Type ----------
+function showIdentificationQuestion() {
+  testTotal++;
+
+  const card = testQuestions[testQuestionIndex];
+
+  // Determine direction based on settings
+  if (testSettings.direction === 'random') {
+    testMode = Math.random() < 0.5 ? 'term-to-def' : 'def-to-term';
+  } else {
+    testMode = testSettings.direction;
+  }
+
+  let questionText, correctAnswer;
+  if (testMode === 'term-to-def') {
+    questionText = card.term;
+    correctAnswer = card.definition;
+  } else {
+    questionText = card.definition;
+    correctAnswer = card.term;
+  }
+
+  currentTestQuestion = { questionText, correctAnswer, wrongOptions: [], card };
+
+  // Format question text
+  let displayText = questionText;
+  if (!/\b(what|which|who|when|where|why|how|name|define)\b.*\?$/i.test(questionText)) {
+    displayText = 'Identify: ' + questionText;
+  }
+  document.getElementById('question-text').textContent = displayText;
+
+  // Show subject tag
+  const subjectTag = document.getElementById('question-subject');
+  if (subjectTag) {
+    if (testSettings.showSubject && card.subject) {
+      subjectTag.textContent = card.subject;
+      subjectTag.style.display = 'inline-block';
+    } else {
+      subjectTag.style.display = 'none';
+    }
+  }
+
+  // Label
+  const labelEl = document.querySelector('.test-question .label');
+  if (labelEl) labelEl.textContent = 'Identification';
+
+  // Build text input instead of option buttons
+  const optionsContainer = document.getElementById('options-container');
+  optionsContainer.innerHTML = '<div style="margin-bottom:10px;"><input type="text" id="identification-answer" class="json-area" placeholder="Type your answer here..." style="width:100%; font-size:1rem; padding:8px;" autocomplete="off"></div><div><button class="btn-primary" onclick="submitIdentificationAnswer()">Submit Answer</button></div>';
+
+  // Auto-focus and press Enter to submit
+  const input = document.getElementById('identification-answer');
+  if (input) {
+    input.focus();
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitIdentificationAnswer();
+      }
+    });
+  }
+
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('result-banner').className = 'result-banner';
+  document.getElementById('test-index').textContent = testQuestionIndex + 1;
+  document.getElementById('test-total').textContent = testQuestions.length;
+
+  startTimer();
+}
+
+function submitIdentificationAnswer() {
+  if (!testActive) return;
+  const input = document.getElementById('identification-answer');
+  const selected = input ? input.value.trim() : '';
+  stopTimer();
+
+  const isCorrect = selected.toLowerCase() === currentTestQuestion.correctAnswer.toLowerCase();
+  if (isCorrect) {
+    testScore++;
+    showResult('Correct!', 'correct');
+  } else {
+    showResult('Incorrect. The correct answer was: "' + currentTestQuestion.correctAnswer + '"', 'incorrect');
+    if (testSettings.repeatWrong) wrongAnswers.push(currentTestQuestion.card);
+    recordTestHistory(currentTestQuestion.card, selected, currentTestQuestion.correctAnswer, testMode);
+  }
+
+  testQuestionIndex++;
+
+  if (input) input.disabled = true;
+
+  const advanceDelay = isCorrect ? 1500 : 5000;
+  setTimeout(() => {
+    showTestQuestion();
+  }, advanceDelay);
+}
+
 function selectOption(selected, btn) {
   if (!testActive) return;
 
@@ -2557,19 +2886,26 @@ function startTimer() {
 
     if (testTimerRemaining <= 0) {
       clearInterval(testTimerInterval);
-      // Auto-advance on timeout (treat as incorrect)
-      const opts = document.querySelectorAll('.option-btn');
-      opts.forEach(b => { b.disabled = true; b.classList.add('disabled'); });
-      showResult('Time\'s up! The correct answer was: "' + currentTestQuestion.correctAnswer + '"', 'incorrect');
-      if (testSettings.repeatWrong) {
-        wrongAnswers.push(currentTestQuestion.card);
+      // Dispatch timeout to the appropriate handler based on question type
+      if (testSettings.questionType === 'matching') {
+        submitMatchingAnswers();
+      } else if (testSettings.questionType === 'identification') {
+        submitIdentificationAnswer();
+      } else {
+        // Multiple choice: Auto-advance on timeout (treat as incorrect)
+        const opts = document.querySelectorAll('.option-btn');
+        opts.forEach(b => { b.disabled = true; b.classList.add('disabled'); });
+        showResult('Time\'s up! The correct answer was: "' + currentTestQuestion.correctAnswer + '"', 'incorrect');
+        if (testSettings.repeatWrong) {
+          wrongAnswers.push(currentTestQuestion.card);
+        }
+        // Record in test history (timer-out treated as wrong answer)
+        recordTestHistory(currentTestQuestion.card, null, currentTestQuestion.correctAnswer, testMode);
+        testQuestionIndex++;
+        setTimeout(() => {
+          showTestQuestion();
+        }, 5000);
       }
-      // Record in test history (timer-out treated as wrong answer)
-      recordTestHistory(currentTestQuestion.card, null, currentTestQuestion.correctAnswer, testMode);
-      testQuestionIndex++;
-      setTimeout(() => {
-        showTestQuestion();
-      }, 5000);
     }
   }, 1000);
 }
@@ -2676,6 +3012,8 @@ function endTest() {
   testActive = false;
   stopTimer();
   wrongAnswers = [];
+  matchingCards = [];
+  matchingAnswers = {};
   document.getElementById('start-test-btn').style.display = 'inline-block';
   document.getElementById('reset-test-btn').style.display = 'none';
   const questionTextEl = document.getElementById('question-text');
@@ -2699,6 +3037,8 @@ function resetTest() {
   testTotal = 0;
   currentTestQuestion = null;
   wrongAnswers = [];
+  matchingCards = [];
+  matchingAnswers = {};
   document.getElementById('start-test-btn').style.display = 'inline-block';
   document.getElementById('reset-test-btn').style.display = 'none';
 
