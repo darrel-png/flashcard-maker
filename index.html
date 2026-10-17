@@ -2656,9 +2656,8 @@ function submitMatchingAnswers() {
   if (!testActive) return;
   stopTimer();
 
-  const defs = matchingCards.map(c => c.definition);
+  // Reconstruct the shuffled definitions from the dropdown options
   const shuffledDefs = [];
-  // Reconstruct the shuffled order from the first dropdown
   const firstSelect = document.getElementById('match-0');
   if (firstSelect) {
     for (let i = 1; i < firstSelect.options.length; i++) {
@@ -2666,14 +2665,13 @@ function submitMatchingAnswers() {
     }
   }
 
-  const correctAnswers = matchingCards.map(c => c.definition);
   let correctCount = 0;
   let incorrectCards = [];
 
   matchingCards.forEach((card, i) => {
     const select = document.getElementById('match-' + i);
     const selectedIdx = select ? parseInt(select.value) : -1;
-    const userAnswer = selectedIdx >= 0 ? defs[selectedIdx] : null;
+    const userAnswer = selectedIdx >= 0 ? shuffledDefs[selectedIdx] : null;
     const isCorrect = userAnswer === card.definition;
 
     if (isCorrect) {

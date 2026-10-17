@@ -6,7 +6,7 @@ A retro 80s neon-themed, self-contained HTML flashcard maker with intelligent di
 
 - **Create** flashcards with term/definition pairs, organized by subject
 - **Study** mode with flip cards, known/unknown tracking, and table view
-- **Test** mode with multiple-choice questions and smart distractor generation
+- **Test** mode with multiple-choice, matching, and identification question types
 - **Import/Export** JSON, TXT, CSV, and PDF formats
 - **Share questions via link** — encode flashcards AND test history as base64 URL params, auto-import on open
 - **Test history exchange** — export/import wrong-answer patterns to enhance distractor quality across users
@@ -51,6 +51,16 @@ The multiple-choice distractor generation uses two strategies:
    - Numbers → math variants (+1, −1, ×2, ÷2, squared, cubed)
    - Names → domain-relevant categories (authors, painters, composers, planets, etc.)
    - Chemical formulas → structural variants
+
+## Question Types
+
+The Test mode supports three question formats:
+
+- **Multiple Choice** — Traditional multiple-choice with smart distractor generation (2-10 options)
+- **Matching** — Pair terms with definitions via dropdowns; each set is scored as correct/incorrect
+- **Identification** — Open-ended text input; answers are matched case-insensitively
+
+Select the question type in the **Test** tab's settings panel. For matching, you can configure the set size (3-10 pairs).
 
 ## Test Settings
 
