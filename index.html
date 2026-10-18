@@ -175,10 +175,21 @@
   tr:hover td {
     background: var(--pixel-lavender);
   }
-  /* Create tab table — let it auto-size, allow text wrapping */
+  .data-table-wrapper {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+  }
   #data-table { table-layout: auto; }
   #data-table th,
   #data-table td { word-break: break-word; white-space: normal; }
+  #data-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--card);
+    z-index: 2;
+  }
   /* Per-subject hide button in table */
   .subject-hide-btn {
     display: inline-block;
@@ -618,7 +629,7 @@
     #batch-section { display: flex !important; flex-wrap: wrap; gap: 4px; }
 
     /* Table — scrollable on mobile */
-    .data-table-wrapper { overflow-x: auto; }
+    .data-table-wrapper { max-height: 300px; }
     table { font-size: 0.8rem; }
     th, td { padding: 8px 10px; }
 
