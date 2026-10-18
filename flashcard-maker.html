@@ -180,6 +180,12 @@
     overflow-y: auto;
     border: 1px solid var(--border-dark);
     border-radius: 4px;
+    direction: rtl;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--card-alt);
+  }
+  .data-table-wrapper > * {
+    direction: ltr;
   }
   #data-table { table-layout: auto; }
   #data-table th,
@@ -528,7 +534,43 @@
   .modal textarea { min-height: 200px; }
   .modal .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
 
-  /* ===== Sidebar Layout (Study, Create, Test tabs) ===== */
+  /* ===== Custom Scrollbar (Left-side, Pastel Theme) ===== */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--card-alt);
+    border: 1px solid var(--border-dark);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 6px;
+    border: 2px solid var(--card-alt);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--accent2);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--card-alt);
+  }
+  /* Left-side scrollbar: direction: rtl moves scrollbar to the left,
+     direct children reset to ltr for normal content flow */
+  .study-sidebar,
+  .create-sidebar,
+  .test-sidebar,
+  .study-table-scroll {
+    direction: rtl;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--card-alt);
+  }
+  .study-sidebar > *,
+  .create-sidebar > *,
+  .test-sidebar > *,
+  .study-table-scroll > * {
+    direction: ltr;
+  }
   .study-layout,
   .create-layout,
   .test-layout {
@@ -864,7 +906,7 @@
     <!-- Table View -->
     <div id="study-table-view" class="form-group" style="display:none;">
       <div class="counter" id="table-counter"></div>
-      <div style="overflow-x:auto; max-height:500px;">
+      <div class="study-table-scroll" style="overflow-x:auto; max-height:500px;">
         <table>
           <thead>
             <tr>
