@@ -480,6 +480,9 @@
     margin: 24px 0;
     border-top: 2px solid var(--border-dark);
     position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
   .create-divider::before {
     content: "";
@@ -500,8 +503,7 @@
     margin-top: -10px;
   }
   .create-divider .btn-sm {
-    float: right;
-    margin-top: -5px;
+    margin-top: 0;
   }
   /* Modal */
   .modal {
@@ -627,6 +629,10 @@
 
     /* Tabs — more compact on mobile */
     .tab-btn { padding: 10px 8px; font-size: 0.8rem; }
+
+    /* Layout — stack sidebar above content on tablet/mobile */
+    .study-layout, .create-layout, .test-layout { flex-direction: column; }
+    .study-sidebar, .create-sidebar, .test-sidebar { flex: 0 0 auto; max-width: 100%; position: static; }
 
     /* Form rows — stack vertically on mobile */
     .row { display: block; }
