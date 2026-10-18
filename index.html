@@ -25,6 +25,9 @@
     --pixel-peach: #ffe5b4;
     --pixel-blue: #aec6ff;
     --pixel-yellow: #ffffcc;
+    --pixel-green: #e6ffe6;
+    --pixel-green-border: #b2e6b2;
+    --pixel-green-hover: #d4f5d4;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -291,18 +294,26 @@
     font-size: 1.4rem; line-height: 1.5; margin-bottom: 8px;
     color: var(--text);
   }
-  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+    width: 100%;
+    max-width: 540px;
+  }
   .option-btn {
-    padding: 14px; text-align: center;
-    background: var(--card-alt); border: 2px solid var(--border-dark);
-    color: var(--text); font-size: 0.9rem;
+    padding: 16px 14px; text-align: center;
+    background: var(--pixel-green); border: 2px solid var(--pixel-green-border);
+    color: var(--text); font-size: 0.95rem;
     cursor: pointer; transition: all 0.1s;
     letter-spacing: 0.5px;
     box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
     image-rendering: pixelated;
+    width: 100%;
   }
   .option-btn:hover:not(.disabled) {
-    background: var(--pixel-lavender); border-color: var(--accent);
+    background: var(--pixel-green-hover); border-color: var(--accent);
     transform: translate(1px, 1px);
   }
   .option-btn.correct {
