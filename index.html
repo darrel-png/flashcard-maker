@@ -905,7 +905,12 @@
             <option value="multiple-choice" selected>Multiple Choice</option>
             <option value="matching">Matching</option>
             <option value="identification">Identification</option>
+            <option value="all-mixed">All (Mixed Types)</option>
           </select>
+          <div style="display: flex; align-items: flex-end; gap: 8px; margin-top: 6px;">
+            <input type="checkbox" id="randomize-question-types" onchange="toggleMatchingSetSize()" style="margin-top: 4px;">
+            <label for="randomize-question-types" style="margin: 0; font-size: 0.85rem;">Randomize question types</label>
+          </div>
         </div>
         <div class="form-group" id="matching-set-size-group" style="display:none;">
           <label for="matching-set-size">Matching set size</label>
@@ -1156,6 +1161,7 @@ let wrongAnswers = [];
 let matchingCards = [];
 let matchingAnswers = {};
 let matchingSetSize = 5;
+let currentEffectiveType = 'multiple-choice'; // tracks actual type for current question (for timer dispatch)
 // Test history: tracks which wrong answers were actually selected, to enhance future multiple-choice
 // Each entry: { term, definition, subject, wrongSelected, correctAnswer }
 let testHistory = JSON.parse(localStorage.getItem('testHistory') || '[]');
@@ -2020,6 +2026,7 @@ function getTestSettings() {
     showSubject: document.getElementById('show-subject').value === 'true',
     repeatWrong: document.getElementById('repeat-wrong').value === 'true',
     questionType: document.getElementById('question-type').value,
+    randomizeQuestionTypes: document.getElementById('randomize-question-types').checked,
     matchingSetSize: parseInt(document.getElementById('matching-set-size')?.value || '5')
   };
 }
@@ -2039,8 +2046,9 @@ function toggleSettings() {
 function toggleMatchingSetSize() {
   const qType = document.getElementById('question-type');
   const group = document.getElementById('matching-set-size-group');
+  const randomize = document.getElementById('randomize-question-types');
   if (!group) return;
-  if (qType && qType.value === 'matching') {
+  if (qType && (qType.value === 'matching' || qType.value === 'all-mixed') || (randomize && randomize.checked)) {
     group.style.display = 'block';
   } else {
     group.style.display = 'none';
@@ -2515,12 +2523,20 @@ function showTestQuestion() {
     return;
   }
 
+  // If randomize question types is enabled, OR all-mixed mode is selected, pick a random type for this question
+  let effectiveType = testSettings.questionType;
+  if (testSettings.randomizeQuestionTypes || testSettings.questionType === 'all-mixed') {
+    const types = ['multiple-choice', 'matching', 'identification'];
+    effectiveType = types[Math.floor(Math.random() * types.length)];
+  }
+  currentEffectiveType = effectiveType;
+
   // Dispatch to question-type-specific handler
-  if (testSettings.questionType === 'matching') {
+  if (effectiveType === 'matching') {
     showMatchingQuestion();
     return;
   }
-  if (testSettings.questionType === 'identification') {
+  if (effectiveType === 'identification') {
     showIdentificationQuestion();
     return;
   }
@@ -2902,10 +2918,10 @@ function startTimer() {
 
     if (testTimerRemaining <= 0) {
       clearInterval(testTimerInterval);
-      // Dispatch timeout to the appropriate handler based on question type
-      if (testSettings.questionType === 'matching') {
+      // Dispatch timeout to the appropriate handler based on the ACTUAL question type used
+      if (currentEffectiveType === 'matching') {
         submitMatchingAnswers();
-      } else if (testSettings.questionType === 'identification') {
+      } else if (currentEffectiveType === 'identification') {
         submitIdentificationAnswer();
       } else {
         // Multiple choice: Auto-advance on timeout (treat as incorrect)
