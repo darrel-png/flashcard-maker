@@ -2213,11 +2213,13 @@ function saveTestHistory() {
   if (testHistory.length > 500) testHistory = testHistory.slice(-500);
   localStorage.setItem('testHistory', JSON.stringify(testHistory));
   updateImportExportSubjects();
+  updateGitHubSubmitButton();
 }
 
 function clearTestHistory() {
   testHistory = [];
   localStorage.removeItem('testHistory');
+  updateGitHubSubmitButton();
 }
 
 function recordTestHistory(cardEntry, wrongSelected, correctAnswer, mode) {
@@ -3837,6 +3839,13 @@ function importTestHistory() {
   }
 }
 
+function updateGitHubSubmitButton() {
+  const btn = document.getElementById('github-submit-btn');
+  if (btn) {
+    btn.style.display = testHistory.length > 0 ? 'inline-block' : 'none';
+  }
+}
+
 function submitTestHistoryToGitHub() {
   if (testHistory.length === 0) {
     alert('No test history to submit. Take some tests first!');
@@ -3850,6 +3859,10 @@ function submitTestHistoryToGitHub() {
   } else {
     toSubmit = testHistory.filter(h => h.subject === subject);
   }
+  if (toSubmit.length === 0) {
+    alert('No test history records found for the selected subject. Choose "All Subjects" or pick a subject that has test data.');
+    return;
+  }
   const body = encodeURIComponent(
     '## Test History Data Submission\n\n' +
     'This data was collected locally to improve multiple-choice distractor generation.\n\n' +
@@ -3860,6 +3873,13 @@ function submitTestHistoryToGitHub() {
   const title = encodeURIComponent('Test History Data Submission');
   const url = 'https://github.com/darrel-png/flashcard-maker/issues/new?title=' + title + '&body=' + body;
   window.open(url, '_blank');
+  // Show confirmation status
+  const statusEl = document.getElementById('file-status');
+  if (statusEl) {
+    statusEl.textContent = 'Submitted ' + toSubmit.length + ' test history record(s) to GitHub. A new tab should have opened with a pre-filled issue.';
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--accent3)';
+  }
 }
 
 function handleTestHistoryLink() {
@@ -3915,6 +3935,7 @@ updateImportExportSubjects();
 updateShareButton();
 handleSharedLink();
 handleTestHistoryLink();
+updateGitHubSubmitButton();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
