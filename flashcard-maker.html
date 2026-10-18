@@ -526,41 +526,15 @@
   .modal textarea { min-height: 200px; }
   .modal .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
 
-  /* ===== Study Tab Sidebar Layout ===== */
-  .study-layout {
-    display: flex;
-    gap: 16px;
-    height: 100%;
-  }
-  .study-sidebar {
-    flex: 0 0 280px;
-    max-width: 280px;
-    overflow-y: auto;
-  }
-  .study-sidebar .stats-bar.study-options {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .study-sidebar .stats-bar.study-options > span {
-    margin-bottom: 4px;
-  }
-  .study-sidebar .stats-bar.study-options > div {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .study-main {
-    flex: 1;
-    min-width: 0;
-  }
-  /* Create and Test tabs reuse the same sidebar pattern */
-    .create-layout,
+  /* ===== Sidebar Layout (Study, Create, Test tabs) ===== */
+  .study-layout,
+  .create-layout,
   .test-layout {
     display: flex;
     gap: 20px;
     align-items: flex-start;
   }
+  .study-sidebar,
   .create-sidebar,
   .test-sidebar {
     flex: 0 0 300px;
@@ -570,15 +544,32 @@
     top: 12px;
     max-height: calc(100vh - 100px);
   }
+  .study-sidebar .stats-bar.study-options,
   .create-sidebar .stats-bar.create-options,
   .test-sidebar .stats-bar.test-options,
   .test-sidebar .test-settings {
     flex-direction: column;
+    align-items: stretch;
     gap: 8px;
   }
+  .study-sidebar .stats-bar.study-options > span,
   .create-sidebar .stats-bar.create-options > span,
   .test-sidebar .stats-bar.test-options > span {
     margin-bottom: 4px;
+  }
+  .study-sidebar .stats-bar.study-options > div,
+  .create-sidebar .stats-bar.create-options > div,
+  .test-sidebar .stats-bar.test-options > div,
+  .test-sidebar .test-settings > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .study-main,
+  .create-main,
+  .test-main {
+    flex: 1;
+    min-width: 0;
   }
   /* Stack form groups vertically in sidebar for narrow width */
   .create-sidebar .row,
@@ -590,7 +581,6 @@
     flex: 1;
     min-width: auto !important;
     margin-bottom: 12px;
-    display: block !important;
   }
   /* Batch section wraps in narrow sidebar */
   .create-sidebar #batch-section {
@@ -599,13 +589,8 @@
     font-size: 0.75rem;
   }
   .create-sidebar #batch-subject {
-    width: 110px !important;
-    font-size: 0.7rem;
-  }
-    .create-main,
-  .test-main {
-    flex: 1;
-    min-width: 0;
+    width: 160px !important;
+    font-size: 0.8rem;
   }
   /* Create sidebar form panels for visual grouping */
   .create-sidebar .form-section {
@@ -696,7 +681,7 @@
 
     /* Study sidebar stacks on top on mobile */
     .study-layout, .create-layout, .test-layout { flex-direction: column; }
-    .study-sidebar, .create-sidebar, .test-sidebar { flex: 0 0 auto; max-width: none; }
+    .study-sidebar, .create-sidebar, .test-sidebar { flex: 0 0 auto; max-width: 100%; }
 
     /* Full-width buttons in actions */
     .actions { flex-direction: column; gap: 8px; }
@@ -735,7 +720,7 @@
           <span id="batch-section" style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
             <span class="hint" style="font-size: 0.75rem; color: var(--muted); margin-right: 4px;">Select rows →</span>
             <button class="btn-sm btn-secondary" onclick="toggleSelectAll()">Select All</button>
-            <input type="text" id="batch-subject" list="subject-datalist" placeholder="Subject to apply..." style="width:140px; padding:4px 8px; font-size: 0.8rem;" />
+            <input type="text" id="batch-subject" list="subject-datalist" placeholder="Subject to apply..." style="width:160px; padding:4px 8px; font-size: 0.8rem;" />
             <button class="btn-sm btn-secondary" onclick="batchAssignSubject()">Apply to Selected</button>
             <span class="count" id="selected-count" style="color: var(--accent);">0 selected</span>
             <span id="batch-status" style="color: var(--muted); font-size: 0.8rem; margin-left: 8px;"></span>
