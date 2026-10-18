@@ -1142,6 +1142,33 @@
       <span style="color: var(--accent);">.json</span> — same format as above.
     </p>
 
+    <!-- Saved Sets Database -->
+    <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <h3 style="color: var(--accent); margin-bottom: 4px;">💾 Saved Question Sets</h3>
+      <p class="hint">Save your current flashcards as a named set in local storage. Come back anytime and load them — no need to re-import.</p>
+
+      <div style="display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; flex-wrap: wrap;">
+        <div class="form-group" style="flex: 2; min-width: 160px;">
+          <label for="set-name-input">Set Name:</label>
+          <input type="text" id="set-name-input" placeholder="e.g. Math Final 2024" />
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 120px;">
+          <label for="saved-sets-list">Saved Sets:</label>
+          <select id="saved-sets-list" onchange="updateSavedSetButtons()">
+            <option value="">— select a set —</option>
+          </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <button class="btn-primary" onclick="saveFlashcardSet()" style="font-size: 0.8rem; padding: 6px 12px;">💾 Save Current</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <button class="btn-secondary" onclick="loadFlashcardSet(true)" style="font-size: 0.8rem; padding: 6px 12px;">📥 Replace</button>
+          <button class="btn-danger" onclick="deleteFlashcardSet()" style="font-size: 0.8rem; padding: 4px 8px; display: none;" id="delete-set-btn">🗑 Delete</button>
+        </div>
+      </div>
+      <div id="set-status" class="hint" style="margin-top: 6px; color: var(--accent3);"></div>
+    </div>
+
     <!-- Share Link Generation -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">Share Questions via Link</h3>
@@ -1474,6 +1501,118 @@ function loadFromCloud() {
   }).catch(function(err) {
     console.error('Cloud load failed:', err);
   });
+}
+
+// ========== Saved Sets Database ==========
+function getSavedSets() {
+  try {
+    return JSON.parse(localStorage.getItem('flashcard_sets') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSavedSets(sets) {
+  localStorage.setItem('flashcard_sets', JSON.stringify(sets));
+}
+
+function renderSavedSetsList() {
+  var sets = getSavedSets();
+  var select = document.getElementById('saved-sets-list');
+  if (!select) return;
+  select.innerHTML = '<option value="">— select a set —</option>';
+  var names = Object.keys(sets).sort();
+  for (var i = 0; i < names.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = names[i];
+    opt.textContent = names[i] + ' (' + sets[names[i]].length + ' cards)';
+    select.appendChild(opt);
+  }
+  updateSavedSetButtons();
+}
+
+function updateSavedSetButtons() {
+  var select = document.getElementById('saved-sets-list');
+  var deleteBtn = document.getElementById('delete-set-btn');
+  if (!select || !deleteBtn) return;
+  var selected = select.value;
+  deleteBtn.style.display = selected ? 'inline-block' : 'none';
+}
+
+function saveFlashcardSet() {
+  var name = document.getElementById('set-name-input').value.trim();
+  if (!name) {
+    alert('Please enter a set name.');
+    return;
+  }
+  if (flashcards.length === 0) {
+    alert('No cards to save. Add some flashcards first.');
+    return;
+  }
+  var sets = getSavedSets();
+  sets[name] = flashcards.slice();
+  saveSavedSets(sets);
+  renderSavedSetsList();
+  var el = document.getElementById('set-name-input');
+  if (el) el.value = '';
+  // Show confirmation
+  var statusEl = document.getElementById('set-status');
+  if (statusEl) {
+    statusEl.textContent = '✓ Saved "' + name + '" with ' + flashcards.length + ' cards. Accessible anytime.';
+    setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 4000);
+  }
+  // Also sync to cloud if logged in
+  syncToCloud();
+}
+
+function loadFlashcardSet(replace) {
+  var select = document.getElementById('saved-sets-list');
+  if (!select || !select.value) {
+    alert('Please select a saved set first.');
+    return;
+  }
+  var sets = getSavedSets();
+  var name = select.value;
+  var savedCards = sets[name];
+  if (!savedCards) {
+    alert('Selected set not found.');
+    return;
+  }
+  if (replace) {
+    if (!confirm('Replace your current ' + flashcards.length + ' cards with ' + savedCards.length + ' cards from "' + name + '"?')) {
+      return;
+    }
+    flashcards = savedCards.slice();
+  } else {
+    flashcards = flashcards.concat(savedCards);
+  }
+  saveData();
+  if (replace) {
+    var statusEl = document.getElementById('set-status');
+    if (statusEl) {
+      statusEl.textContent = '✓ Loaded "' + name + '" (' + savedCards.length + ' cards' + (replace ? ' replaced' : ' merged') + ').';
+      setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 4000);
+    }
+  }
+}
+
+function deleteFlashcardSet() {
+  var select = document.getElementById('saved-sets-list');
+  if (!select || !select.value) {
+    alert('Please select a set to delete.');
+    return;
+  }
+  var name = select.value;
+  if (!confirm('Delete saved set "' + name + '"? This cannot be undone.')) return;
+  var sets = getSavedSets();
+  delete sets[name];
+  saveSavedSets(sets);
+  renderSavedSetsList();
+  var statusEl = document.getElementById('set-status');
+  if (statusEl) {
+    statusEl.textContent = '🗑 Deleted "' + name + '".';
+    setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 4000);
+  }
 }
 
 // ---------- Utility ----------
@@ -4193,6 +4332,7 @@ updateAuthUI();
 updateCardCount();
 updateSubjectQuickPick();
 populateSubjectFilters();
+renderSavedSetsList();
 updateImportExportSubjects();
 updateShareButton();
 handleSharedLink();
