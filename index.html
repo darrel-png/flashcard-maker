@@ -624,6 +624,15 @@
     margin-bottom: 12px;
     font-weight: 600;
   }
+  /* 2×2 grid for create sidebar action buttons */
+  .create-sidebar .action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .create-sidebar .action-grid button {
+    width: 100%;
+  }
 
   /* ===== Mobile Fixes ===== */
   @media (max-width: 768px) {
@@ -717,7 +726,7 @@
       <div class="create-sidebar">
         <div class="stats-bar create-options">
           <span>Total cards: <span class="count" id="card-count">0</span></span>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div class="action-grid">
             <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Ungroup</button>
             <button class="btn-sm btn-primary" onclick="randomizeCardOrder()" id="randomize-btn">🔀 Randomize</button>
             <button class="btn-sm btn-secondary" onclick="toggleCreateForm()" id="create-form-hide-btn">Hide Form</button>
