@@ -6,7 +6,7 @@
 <title>Flashcard Maker</title>
 <style>
   :root {
-    /* Pastel palette */
+    /* Pastel palette (light mode) */
     --bg: #fdf6f0;
     --card: #f3e8ff;
     --card-alt: #ede9fe;
@@ -28,6 +28,31 @@
     --pixel-green: #ede9fe;
     --pixel-green-border: #c4b5fe;
     --pixel-green-hover: #ddd6fe;
+    /* Dark mode overrides */
+    --dark-bg: #0a0a12;
+    --dark-card: #1a1a2e;
+    --dark-card-alt: #222236;
+    --dark-text: #e8e8f0;
+    --dark-muted: #a0a0b0;
+    --dark-accent: #b387f0;
+    --dark-accent2: #a070e0;
+    --dark-accent3: #8bacf0;
+    --dark-danger: #ff6b6b;
+    --dark-border: #3a3a52;
+    --dark-border-dark: #8b73e0;
+  }
+  body.dark-mode {
+    --bg: var(--dark-bg);
+    --card: var(--dark-card);
+    --card-alt: var(--dark-card-alt);
+    --text: var(--dark-text);
+    --muted: var(--dark-muted);
+    --accent: var(--dark-accent);
+    --accent2: var(--dark-accent2);
+    --accent3: var(--dark-accent3);
+    --danger: var(--dark-danger);
+    --border: var(--dark-border);
+    --border-dark: var(--dark-border-dark);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -46,6 +71,17 @@
     padding: 12px;
     position: relative;
   }
+  body.dark-mode {
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(179, 135, 240, 0.06) 0px,
+        rgba(179, 135, 240, 0.06) 8px,
+        rgba(136, 173, 240, 0.06) 8px,
+        rgba(136, 173, 240, 0.06) 16px
+      ),
+      var(--bg);
+  }
   body::before {
     content: "";
     position: fixed;
@@ -57,7 +93,44 @@
     pointer-events: none;
     z-index: 0;
   }
+  body.dark-mode::before {
+    background-image:
+      linear-gradient(rgba(179, 135, 240, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(136, 173, 240, 0.08) 1px, transparent 1px);
+  }
   .container { max-width: 1800px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* Dark mode overrides */
+  body.dark-mode h1 { text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode label { text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.3); }
+  body.dark-mode .tabs,
+  body.dark-mode .tab-content,
+  body.dark-mode .flashcard,
+  body.dark-mode button,
+  body.dark-mode .option-btn,
+  body.dark-mode .result-banner,
+  body.dark-mode .badge,
+  body.dark-mode .subject-tag,
+  body.dark-mode .timer-bar,
+  body.dark-mode .empty-state,
+  body.dark-mode .form-section,
+  body.dark-mode .subject-filter-bar,
+  body.dark-mode .flashcard-table,
+  body.dark-mode input,
+  body.dark-mode textarea,
+  body.dark-mode select {
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4) !important;
+  }
+  body.dark-mode .flashcard:hover { box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.4) !important; }
+  body.dark-mode .tabs { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .tab-content { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .flashcard { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .timer-bar { background: rgba(255, 255, 255, 0.1); }
+  body.dark-mode .subject-hide-btn { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .btn-sm { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .table-delete-btn { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode fieldset.question-type-checklist { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4); }
+
   h1 {
     font-size: 2rem; margin-bottom: 8px;
     color: var(--accent);
@@ -333,7 +406,7 @@
   .option-btn {
     padding: 16px 14px; text-align: center;
     background: var(--pixel-green); border: 2px solid var(--pixel-green-border);
-    color: #2d2d44; font-size: 0.95rem;
+    color: var(--text); font-size: 0.95rem;
     cursor: pointer; transition: all 0.1s;
     letter-spacing: 0.5px;
     box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
@@ -836,7 +909,8 @@
     <button class="btn-sm btn-secondary" id="login-btn" onclick="showLoginModal()" style="display:inline-block;">🔐 Log In</button>
     <button class="btn-sm btn-secondary" id="logout-btn" onclick="logout()" style="display:none;">Logout</button>
     <button class="btn-sm btn-primary" id="sync-cloud-btn" onclick="syncToCloud()" style="display:none;">☁️ Sync Now</button>
-    <span id="cloud-sync-status" class="hint" style="margin-left:auto; color:var(--muted);">Not signed in</span>
+    <button class="btn-sm btn-secondary" id="dark-mode-btn" onclick="toggleDarkMode()" style="display:inline-block; margin-left:auto;">🌙 Dark</button>
+    <span id="cloud-sync-status" class="hint" style="margin-left:8px; color:var(--muted);">Not signed in</span>
   </div>
 
   <!-- Create Tab -->
@@ -3212,7 +3286,7 @@ async function showTestQuestion() {
       const subjectColor = getSubjectColor(card.subject);
       subjectTag.textContent = card.subject;
       subjectTag.style.display = 'inline-block';
-      subjectTag.style.background = 'rgba(0,0,0,0.3)';
+      subjectTag.style.background = document.body.classList.contains('dark-mode') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.3)';
       subjectTag.style.border = '1px solid ' + subjectColor;
       subjectTag.style.color = subjectColor;
     } else {
@@ -3337,7 +3411,10 @@ function submitMatchingAnswers() {
       if (select) {
         for (let opt of select.options) {
           if (opt.text === card.definition) {
-            opt.style.background = 'rgba(0, 255, 0, 0.2)';
+            opt.style.background = 'rgba(0, 255, 0, 0.15)';
+            if (document.body.classList.contains('dark-mode')) {
+              opt.style.background = 'rgba(74, 222, 171, 0.25)';
+            }
           }
         }
       }
@@ -4641,6 +4718,24 @@ function handleTestHistoryLink() {
   }
 }
 
+// ---------- Dark Mode ----------
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  var isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('flashcardDarkMode', isDark ? '1' : '0');
+  var btn = document.getElementById('dark-mode-btn');
+  if (btn) btn.textContent = isDark ? '☀️ Light' : '🌙 Dark';
+}
+
+function loadDarkMode() {
+  var saved = localStorage.getItem('flashcardDarkMode');
+  if (saved === '1') {
+    document.body.classList.add('dark-mode');
+    var btn = document.getElementById('dark-mode-btn');
+    if (btn) btn.textContent = '☀️ Light';
+  }
+}
+
 // ---------- Init ----------
 initFirebase();
 updateAuthUI();
@@ -4653,6 +4748,7 @@ updateShareButton();
 handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
+loadDarkMode();
 // Start loading AI model in background (lazy — only downloads when needed)
 setTimeout(function() { ensureAiModel(); }, 2000);
 
