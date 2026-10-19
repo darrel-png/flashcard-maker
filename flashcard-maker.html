@@ -219,6 +219,11 @@
   .hidden-subjects-bar {
     flex-wrap: wrap;
   }
+  .table-btn-group {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
   .btn-sm { padding: 4px 10px; font-size: 0.75rem; image-rendering: pixelated; }
   .text-center { text-align: center; }
   .empty-state {
@@ -508,6 +513,14 @@
     font-weight: 600;
     margin-top: -10px;
   }
+  .create-divider .btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    padding: 0 8px;
+    z-index: 1;
+  }
   .create-divider .btn-sm {
     margin-top: 0;
   }
@@ -684,6 +697,7 @@
     button { padding: 12px 20px; font-size: 0.85rem; }
     .btn-sm { padding: 8px 14px; font-size: 0.8rem; min-width: 44px; min-height: 44px; }
     .btn-sm.btn-secondary { padding: 8px 12px; }
+    .subject-hide-btn { width: 32px; height: 32px; font-size: 16px; }
 
     /* Stats bar — compact layout */
     .stats-bar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
@@ -691,7 +705,7 @@
     #batch-section { display: flex !important; flex-wrap: wrap; gap: 4px; }
 
     /* Table area buttons — stack on mobile */
-    .create-divider > div[style*="display: flex"] { flex-direction: column; gap: 4px; align-items: stretch; }
+    .create-divider .btn-group { flex-direction: column; gap: 4px; align-items: stretch; }
     .hidden-subjects-bar { flex-direction: column; gap: 6px; }
 
     /* Table — scrollable on mobile */
@@ -843,7 +857,7 @@
     <!-- Visual separator - on top of table -->
     <div class="create-divider">
       <span class="create-divider-label">Your Flashcards</span>
-      <div style="display: flex; gap: 6px; align-items: center;">
+      <div class="btn-group">
         <button class="btn-sm btn-secondary" onclick="toggleCreateTable()" id="create-table-hide-btn">Hide Table</button>
         <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Group by Subject</button>
       </div>
@@ -1755,8 +1769,8 @@ function renderDataTable() {
           <td>${escapeHTML(subj)}</td>
           <td class="text-center">
             ${editModeActive
-              ? `<button class="btn-sm btn-secondary" onclick="openEditModal(${origIdx})">Edit</button>
-                 <button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button>`
+              ? `<div class="table-btn-group"><button class="btn-sm btn-secondary" onclick="openEditModal(${origIdx})">Edit</button>
+                 <button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button></div>`
               : `<button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button>`
             }
           </td>
@@ -1785,8 +1799,8 @@ function renderDataTable() {
         </td>
         <td class="text-center">
           ${editModeActive
-            ? `<button class="btn-sm btn-secondary" onclick="openEditModal(${i})">Edit</button>
-               <button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button>`
+            ? `<div class="table-btn-group"><button class="btn-sm btn-secondary" onclick="openEditModal(${i})">Edit</button>
+               <button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button></div>`
             : `<button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button>`
           }
         </td>
