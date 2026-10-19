@@ -1324,7 +1324,7 @@ const firebaseConfig = {
 
 /* Firestore security rules (paste in the Firebase console > Firestore > Rules):
    rules_version = '2';
-   service cloud.firestore 'databases/{database}/documents' {
+   service cloud.firestore {
      match /databases/{database}/documents {
        match /users/{userId} {
          allow read, write: if request.auth != null && request.auth.uid == userId;
