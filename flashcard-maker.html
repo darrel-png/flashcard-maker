@@ -1185,9 +1185,44 @@
     <p class="hint">Supported formats:
       <span style="color: var(--accent);">.txt</span> — "Term: Definition" or "Term\nDefinition" on alternate lines;
       <span style="color: var(--accent);">.csv</span> — col 1 = term, col 2 = definition, col 3 = subject (optional);
-      <span style="color: var(--accent);">.pdf</span> — text extracted via pdf.js (loads on demand);
+      <span style="color: var(--accent);">.pdf</span> — text extracted via pdf.js (loads on demand); with AI enabled, questions are generated automatically;
       <span style="color: var(--accent);">.json</span> — same format as above.
     </p>
+
+    <!-- AI Agent Configuration -->
+    <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent</h3>
+      <p class="hint">Enable AI to generate flashcards from PDFs and create smarter distractors on the test tab. Your API key is saved in browser storage and never leaves your computer except in direct API calls to your chosen provider.</p>
+
+      <div class="form-group" style="margin-bottom: 8px;">
+        <label for="ai-provider">AI Provider</label>
+        <select id="ai-provider" onchange="toggleAiFields()">
+          <option value="">— disabled —</option>
+          <option value="openai">OpenAI (GPT-4o-mini)</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
+        </select>
+      </div>
+
+      <div id="ai-key-group" style="display:none;">
+        <div class="form-group">
+          <label for="ai-api-key">API Key</label>
+          <input type="password" id="ai-api-key" placeholder="sk-..." style="width: 100%;" />
+          <button class="btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; margin-top: 4px;" onclick="saveAiConfig()">💾 Save Key</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <input type="checkbox" id="ai-pdf-import" onchange="saveAiConfig()">
+            <label for="ai-pdf-import" style="font-size: 0.85rem;">Use AI for PDF import</label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <input type="checkbox" id="ai-test-choices" onchange="saveAiConfig()">
+            <label for="ai-test-choices" style="font-size: 0.85rem;">Use AI for test choices</label>
+          </div>
+        </div>
+        <div id="ai-status" class="hint" style="margin-top: 8px;"></div>
+      </div>
+    </div>
 
     <!-- Saved Sets Database -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
@@ -3053,7 +3088,7 @@ function collectWrongOptions(cardEntry, field, exclude) {
   return result.slice(0, need).map(e => e.val).sort(() => Math.random() - 0.5);
 }
 
-function showTestQuestion() {
+async function showTestQuestion() {
   if (testQuestionIndex >= testQuestions.length) {
     showTestResults();
     return;
@@ -3096,10 +3131,18 @@ function showTestQuestion() {
     questionText = card.term;
     correctAnswer = card.definition;
     wrongOptions = collectWrongOptions(card, 'definition', correctAnswer);
+    if (aiForTestChoices()) {
+      const aiOpts = await generateAiWrongOptions(card.term, correctAnswer, card.subject, numWrong);
+      if (aiOpts.length > 0) wrongOptions = aiOpts;
+    }
   } else {
     questionText = card.definition;
     correctAnswer = card.term;
     wrongOptions = collectWrongOptions(card, 'term', correctAnswer);
+    if (aiForTestChoices()) {
+      const aiOpts = await generateAiWrongOptions(card.definition, correctAnswer, card.subject, numWrong);
+      if (aiOpts.length > 0) wrongOptions = aiOpts;
+    }
   }
 
   // If not enough same-subject options, reduce choices to available count rather than pad
@@ -3900,10 +3943,14 @@ async function handleFileSelect(event) {
       statusEl.style.color = 'var(--accent3)';
     } else if (ext === 'pdf') {
       const text = await extractPDFText(file);
-      const defaultSubj = getImportDefaultSubject();
-      parseTextContent(text, file.name, defaultSubj);
-      statusEl.textContent = `PDF loaded (${file.name}). Extracted and parsed ${flashcards.length} total cards.`;
-      statusEl.style.color = 'var(--accent3)';
+      if (aiForPdfImport()) {
+        await generateFlashcardsFromPdf(text, file.name);
+      } else {
+        const defaultSubj = getImportDefaultSubject();
+        parseTextContent(text, file.name, defaultSubj);
+        statusEl.textContent = `PDF loaded (${file.name}). Extracted and parsed ${flashcards.length} total cards.`;
+        statusEl.style.color = 'var(--accent3)';
+      }
     } else {
       statusEl.textContent = `Unsupported file type: .${ext}`;
       statusEl.style.color = 'var(--danger)';
@@ -3915,6 +3962,179 @@ async function handleFileSelect(event) {
 
   // Clear the input so the same file can be re-selected
   event.target.value = '';
+}
+
+// ---------- AI Agent Functions ----------
+function toggleAiFields() {
+  const provider = document.getElementById('ai-provider').value;
+  const group = document.getElementById('ai-key-group');
+  if (group) group.style.display = provider ? 'block' : 'none';
+  loadAiConfig(); // pre-fill saved values
+}
+
+function saveAiConfig() {
+  const config = {
+    provider: document.getElementById('ai-provider')?.value || '',
+    apiKey: document.getElementById('ai-api-key')?.value || '',
+    usePdfImport: document.getElementById('ai-pdf-import')?.checked || false,
+    useTestChoices: document.getElementById('ai-test-choices')?.checked || false
+  };
+  localStorage.setItem('flashcardAiConfig', JSON.stringify(config));
+  const statusEl = document.getElementById('ai-status');
+  if (statusEl) {
+    if (config.apiKey && config.provider) {
+      statusEl.textContent = '✅ AI config saved in browser storage';
+      statusEl.style.color = 'var(--accent3)';
+    } else if (config.provider && !config.apiKey) {
+      statusEl.textContent = '⚠️ Provider selected but API key is empty';
+      statusEl.style.color = 'var(--danger)';
+    } else {
+      statusEl.textContent = 'AI agent disabled';
+      statusEl.style.color = 'var(--muted)';
+    }
+  }
+}
+
+function loadAiConfig() {
+  const saved = localStorage.getItem('flashcardAiConfig');
+  if (!saved) return;
+  const config = JSON.parse(saved);
+  const providerEl = document.getElementById('ai-provider');
+  const keyEl = document.getElementById('ai-api-key');
+  const pdfEl = document.getElementById('ai-pdf-import');
+  const testEl = document.getElementById('ai-test-choices');
+  if (config.provider && providerEl) providerEl.value = config.provider;
+  if (config.apiKey && keyEl) keyEl.value = config.apiKey;
+  if (pdfEl) pdfEl.checked = config.usePdfImport || false;
+  if (testEl) testEl.checked = config.useTestChoices || false;
+  if (config.provider) {
+    const group = document.getElementById('ai-key-group');
+    if (group) group.style.display = 'block';
+  }
+}
+
+function aiForPdfImport() {
+  const config = JSON.parse(localStorage.getItem('flashcardAiConfig') || '{}');
+  return !!(config.apiKey && config.provider && config.usePdfImport);
+}
+
+function aiForTestChoices() {
+  const config = JSON.parse(localStorage.getItem('flashcardAiConfig') || '{}');
+  return !!(config.apiKey && config.provider && config.useTestChoices);
+}
+
+async function callAiModel(prompt, systemPrompt) {
+  const config = JSON.parse(localStorage.getItem('flashcardAiConfig') || '{}');
+  if (!config.apiKey || !config.provider) throw new Error('AI not configured');
+
+  if (config.provider === 'openai') {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + config.apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 4000
+      })
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error('OpenAI API error: ' + response.status + ' ' + err.substring(0, 200));
+    }
+    const data = await response.json();
+    return data.choices[0].message.content;
+  }
+
+  if (config.provider === 'anthropic') {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.apiKey,
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 4000
+      })
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error('Anthropic API error: ' + response.status + ' ' + err.substring(0, 200));
+    }
+    const data = await response.json();
+    return data.content[0].text;
+  }
+
+  throw new Error('Unknown AI provider');
+}
+
+async function generateFlashcardsFromPdf(text, sourceName) {
+  const statusEl = document.getElementById('file-status');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--accent3)';
+  statusEl.textContent = '🤖 AI is analyzing "' + sourceName + '" to generate flashcards...';
+
+  const systemPrompt = 'You are a flashcard creation assistant. Your task is to read the text below and extract question-answer pairs suitable for flashcards. For each pair, extract a clear question (the term/front of the card) and a concise answer (the definition/back of the card). Also extract the subject/topic of each card. Return ONLY a JSON array, nothing else. Each element must have exactly these keys: "question", "answer", "subject". Make questions end with "?" where appropriate. Do not include any text before or after the JSON.';
+
+  try {
+    const aiResponse = await callAiModel(
+      'Here is the text from a document called "' + sourceName + '". Extract flashcards (question-answer pairs with subjects) from this text:\n\n' + text.substring(0, 8000),
+      systemPrompt
+    );
+
+    // Extract JSON from response (in case AI adds surrounding text)
+    let jsonStr = aiResponse.trim();
+    const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    const defaultSubj = getImportDefaultSubject() || 'AI Generated';
+    const newCards = parsed.map(item => ({
+      term: item.question.trim(),
+      definition: item.answer.trim(),
+      subject: (item.subject && item.subject.trim()) ? item.subject.trim() : defaultSubj
+    })).filter(item => item.term && item.definition);
+
+    flashcards = flashcards.concat(newCards);
+    saveData();
+    statusEl.textContent = 'AI generated ' + newCards.length + ' flashcards from "' + sourceName + '". Total: ' + flashcards.length + ' cards.';
+    statusEl.style.color = 'var(--accent3)';
+  } catch (err) {
+    statusEl.textContent = 'AI error: ' + err.message + '. Falling back to text parsing.';
+    statusEl.style.color = 'var(--danger)';
+    parseTextContent(text, sourceName, getImportDefaultSubject());
+  }
+}
+
+async function generateAiWrongOptions(question, correctAnswer, subject, numOptions) {
+  const systemPrompt = 'You are generating distractors (wrong answers) for a multiple-choice flashcard. Your distractors must look plausible and be thematically related to the question, but definitively incorrect. Do not repeat the correct answer. Return only a JSON array of strings.';
+
+  const prompt = 'Question: "' + question + '"\n' +
+    'Correct Answer: "' + correctAnswer + '"\n' +
+    'Subject: "' + (subject || 'General') + '"\n' +
+    'Number of distractors needed: ' + numOptions + '\n\n' +
+    'Generate ' + numOptions + ' plausible but incorrect distractors for this question. Each should be related to the topic but definitively wrong. Return as a JSON array of strings, e.g. ["distractor 1", "distractor 2", "distractor 3"].';
+
+  try {
+    const response = await callAiModel(prompt, systemPrompt);
+    let jsonStr = response.trim();
+    const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+    const parsed = JSON.parse(jsonStr);
+    return parsed.filter(d => d && d.trim() && d.toLowerCase() !== correctAnswer.toLowerCase());
+  } catch (err) {
+    return [];
+  }
 }
 
 function parseTextContent(text, sourceName, defaultSubject) {
@@ -4423,6 +4643,7 @@ updateShareButton();
 handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
+loadAiConfig();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
