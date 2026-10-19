@@ -224,7 +224,13 @@
     gap: 4px;
     align-items: center;
   }
-  .btn-sm { padding: 8px 14px; font-size: 0.8rem; min-height: 30px; image-rendering: pixelated; }
+  /* Table delete button — compact sizing */
+  .table-delete-btn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    min-height: 26px;
+  }
+  .btn-sm { padding: 6px 12px; font-size: 0.8rem; image-rendering: pixelated; }
   .text-center { text-align: center; }
   .empty-state {
     text-align: center; padding: 40px 20px; color: var(--muted);
@@ -713,6 +719,9 @@
     .data-table-wrapper { max-height: 300px; }
     table { font-size: 0.8rem; }
     th, td { padding: 8px 10px; }
+
+    /* Table delete button — proper touch target on mobile */
+    .table-delete-btn { padding: 8px 14px; font-size: 0.8rem; min-width: 44px; min-height: 44px; }
 
     /* Flashcard — reduce height for small screens */
     .flashcard { min-height: 200px; padding: 24px 20px; }
@@ -1771,8 +1780,8 @@ function renderDataTable() {
           <td class="text-center">
             ${editModeActive
               ? `<div class="table-btn-group"><button class="btn-sm btn-secondary" onclick="openEditModal(${origIdx})">Edit</button>
-                 <button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button></div>`
-              : `<button class="btn-sm btn-danger" onclick="deleteCard(${origIdx})">Delete</button>`
+                 <button class="table-delete-btn btn-danger" onclick="deleteCard(${origIdx})">Delete</button></div>`
+              : `<button class="table-delete-btn btn-danger" onclick="deleteCard(${origIdx})">Delete</button>`
             }
           </td>
         `;
@@ -1801,8 +1810,8 @@ function renderDataTable() {
         <td class="text-center">
           ${editModeActive
             ? `<div class="table-btn-group"><button class="btn-sm btn-secondary" onclick="openEditModal(${i})">Edit</button>
-               <button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button></div>`
-            : `<button class="btn-sm btn-danger" onclick="deleteCard(${i})">Delete</button>`
+               <button class="table-delete-btn btn-danger" onclick="deleteCard(${i})">Delete</button></div>`
+            : `<button class="table-delete-btn btn-danger" onclick="deleteCard(${i})">Delete</button>`
           }
         </td>
       `;
@@ -1850,7 +1859,7 @@ function isSubjectHidden(subject) {
 }
 
 // Pastel color palette for subjects
-const SUBJECT_COLORS = ['#ffb3ba', '#baffc9', '#bae1ff', '#ffdfbf', '#d4b5ff', '#b5f2e5', '#ffd1dc', '#a8e6cf', '#ffaaa5', '#c2b2ff'];
+const SUBJECT_COLORS = ['#e76f51', '#2a9d8f', '#264653', '#e9c46a', '#6a4c93', '#2a7f63', '#c44536', '#1d7a78', '#b86b4b', '#8e44ad'];
 let subjectColorMap = {};
 
 function subjectColor(subj) {
@@ -3394,10 +3403,9 @@ function selectOption(selected, btn) {
 }
 
 function getSubjectColor(subject) {
-  const colors = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
   let hash = 0;
   for (let i = 0; i < subject.length; i++) hash = (hash * 31 + subject.charCodeAt(i)) | 0;
-  return colors[Math.abs(hash) % colors.length];
+  return SUBJECT_COLORS[Math.abs(hash) % SUBJECT_COLORS.length];
 }
 
 function startTimer() {
