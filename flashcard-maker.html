@@ -1322,15 +1322,17 @@ const firebaseConfig = {
   appId: "1:870747025249:web:9e94321155fc748d379f20"
 };
 
-/* Firestore security rules (paste in the Firebase console > Firestore > Rules):
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /users/{userId} {
-         allow read, write: if request.auth != null && request.auth.uid == userId;
-       }
-     }
-   }
+/* Firestore security rules — copy ONLY the lines between (and including)
+rules_version = '2'; and the closing } — paste into the Firebase console > Firestore > Rules tab:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
 */
 
 let firebaseApp = null;
