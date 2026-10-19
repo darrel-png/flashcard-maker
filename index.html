@@ -1195,39 +1195,11 @@
       <span style="color: var(--accent);">.json</span> — same format as above.
     </p>
 
-    <!-- AI Agent Configuration -->
+    <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-      <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent</h3>
-      <p class="hint">Enable AI to generate flashcards from PDFs and create smarter distractors on the test tab. Your API key is saved in browser storage and never leaves your computer except in direct API calls to your chosen provider.</p>
-
-      <div class="form-group" style="margin-bottom: 8px;">
-        <label for="ai-provider">AI Provider</label>
-        <select id="ai-provider" onchange="toggleAiFields()">
-          <option value="">— disabled —</option>
-          <option value="openai">OpenAI (GPT-4o-mini)</option>
-          <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
-        </select>
-      </div>
-
-      <div id="ai-key-group" style="display:none;">
-        <div class="form-group">
-          <label for="ai-api-key">API Key</label>
-          <input type="password" id="ai-api-key" placeholder="sk-..." style="width: 100%;" />
-          <button class="btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; margin-top: 4px;" onclick="saveAiConfig()">💾 Save Key</button>
-        </div>
-
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <input type="checkbox" id="ai-pdf-import" onchange="saveAiConfig()">
-            <label for="ai-pdf-import" style="font-size: 0.85rem;">Use AI for PDF import</label>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <input type="checkbox" id="ai-test-choices" onchange="saveAiConfig()">
-            <label for="ai-test-choices" style="font-size: 0.85rem;">Use AI for test choices</label>
-          </div>
-        </div>
-        <div id="ai-status" class="hint" style="margin-top: 8px;"></div>
-      </div>
+      <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
+      <p class="hint">AI is always on. Uses a free open-source model (TinyLlama 1.1B) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~300 MB) and caches locally.</p>
+      <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
     </div>
 
     <!-- Saved Sets Database -->
@@ -3998,146 +3970,105 @@ async function handleFileSelect(event) {
   event.target.value = '';
 }
 
-// ---------- AI Agent Functions ----------
-function toggleAiFields() {
-  const provider = document.getElementById('ai-provider').value;
-  const group = document.getElementById('ai-key-group');
-  if (group) group.style.display = provider ? 'block' : 'none';
-  loadAiConfig(); // pre-fill saved values
+// ---------- AI Agent Functions (Free Browser Model) ----------
+// Uses @xenova/transformers to run TinyLlama 1.1B Chat directly in the browser — no API key needed.
+
+let aiModel = null;
+let aiModelLoading = false;
+let aiModelReady = false;
+const AI_MODEL_NAME = 'Xenova/TinyLlama-1.1B-Chat-v0.1';
+
+function aiForPdfImport() { return true; }
+function aiForTestChoices() { return true; }
+
+function updateAiStatus(msg, color) {
+  const el = document.getElementById('ai-status');
+  if (el) { el.textContent = msg; el.style.color = color; }
 }
 
-function saveAiConfig() {
-  const config = {
-    provider: document.getElementById('ai-provider')?.value || '',
-    apiKey: document.getElementById('ai-api-key')?.value || '',
-    usePdfImport: document.getElementById('ai-pdf-import')?.checked || false,
-    useTestChoices: document.getElementById('ai-test-choices')?.checked || false
-  };
-  localStorage.setItem('flashcardAiConfig', JSON.stringify(config));
-  const statusEl = document.getElementById('ai-status');
-  if (statusEl) {
-    if (config.apiKey && config.provider) {
-      statusEl.textContent = '✅ AI config saved in browser storage';
-      statusEl.style.color = 'var(--accent3)';
-    } else if (config.provider && !config.apiKey) {
-      statusEl.textContent = '⚠️ Provider selected but API key is empty';
-      statusEl.style.color = 'var(--danger)';
-    } else {
-      statusEl.textContent = 'AI agent disabled';
-      statusEl.style.color = 'var(--muted)';
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureAiModel() {
+  if (aiModel) return aiModel;
+  if (aiModelLoading) {
+    while (aiModelLoading) await new Promise(r => setTimeout(r, 200));
+    return aiModel;
+  }
+  aiModelLoading = true;
+  updateAiStatus('🤖 Loading AI model (~300 MB, first time only)...', 'var(--accent3)');
+  try {
+    if (typeof window.transformers === 'undefined') {
+      updateAiStatus('🤖 Downloading AI runtime...', 'var(--accent3)');
+      await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.2/dist/transformers.min.js');
     }
+    updateAiStatus('🤖 Loading TinyLlama 1.1B model...', 'var(--accent3)');
+    const { pipeline } = window.transformers;
+    aiModel = await pipeline('text-generation', AI_MODEL_NAME, {
+      quantized: true
+    });
+    aiModelReady = true;
+    updateAiStatus('✅ AI agent ready (TinyLlama 1.1B, running locally)', 'var(--accent3)');
+  } catch (err) {
+    aiModel = null;
+    aiModelReady = false;
+    updateAiStatus('⚠️ AI model failed to load: ' + err.message.substring(0, 120) + '. Using fallback.', 'var(--danger)');
   }
-}
-
-function loadAiConfig() {
-  const saved = localStorage.getItem('flashcardAiConfig');
-  if (!saved) return;
-  const config = JSON.parse(saved);
-  const providerEl = document.getElementById('ai-provider');
-  const keyEl = document.getElementById('ai-api-key');
-  const pdfEl = document.getElementById('ai-pdf-import');
-  const testEl = document.getElementById('ai-test-choices');
-  if (config.provider && providerEl) providerEl.value = config.provider;
-  if (config.apiKey && keyEl) keyEl.value = config.apiKey;
-  if (pdfEl) pdfEl.checked = config.usePdfImport || false;
-  if (testEl) testEl.checked = config.useTestChoices || false;
-  if (config.provider) {
-    const group = document.getElementById('ai-key-group');
-    if (group) group.style.display = 'block';
-  }
-}
-
-function aiForPdfImport() {
-  const config = JSON.parse(localStorage.getItem('flashcardAiConfig') || '{}');
-  return !!(config.apiKey && config.provider && config.usePdfImport);
-}
-
-function aiForTestChoices() {
-  const config = JSON.parse(localStorage.getItem('flashcardAiConfig') || '{}');
-  return !!(config.apiKey && config.provider && config.useTestChoices);
+  aiModelLoading = false;
+  return aiModel;
 }
 
 async function callAiModel(prompt, systemPrompt) {
-  const config = JSON.parse(localStorage.getItem('flashcardAiConfig') || '{}');
-  if (!config.apiKey || !config.provider) throw new Error('AI not configured');
-
-  if (config.provider === 'openai') {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + config.apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000
-      })
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error('OpenAI API error: ' + response.status + ' ' + err.substring(0, 200));
-    }
-    const data = await response.json();
-    return data.choices[0].message.content;
-  }
-
-  if (config.provider === 'anthropic') {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': config.apiKey,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        system: systemPrompt,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4000
-      })
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error('Anthropic API error: ' + response.status + ' ' + err.substring(0, 200));
-    }
-    const data = await response.json();
-    return data.content[0].text;
-  }
-
-  throw new Error('Unknown AI provider');
+  const model = await ensureAiModel();
+  if (!model) throw new Error('AI model not available');
+  var fullPrompt = '<|system|>\n' + systemPrompt + '\n<|user|>\n' + prompt + '\n<|assistant|>\n';
+  var result = await model(fullPrompt, {
+    max_new_tokens: 1000,
+    temperature: 0.7,
+    do_sample: true,
+    top_p: 0.9
+  });
+  return result[0].generated_text;
 }
 
 async function generateFlashcardsFromPdf(text, sourceName) {
-  const statusEl = document.getElementById('file-status');
+  var statusEl = document.getElementById('file-status');
   statusEl.style.display = 'block';
   statusEl.style.color = 'var(--accent3)';
   statusEl.textContent = '🤖 AI is analyzing "' + sourceName + '" to generate flashcards...';
 
-  const systemPrompt = 'You are a flashcard creation assistant. Your task is to read the text below and extract question-answer pairs suitable for flashcards. For each pair, extract a clear question (the term/front of the card) and a concise answer (the definition/back of the card). Also extract the subject/topic of each card. Return ONLY a JSON array, nothing else. Each element must have exactly these keys: "question", "answer", "subject". Make questions end with "?" where appropriate. Do not include any text before or after the JSON.';
+  var systemPrompt = 'You are a flashcard creation assistant. Your task is to read the text below and extract clear question-answer pairs suitable for flashcards. For each pair, create a question (the term/front of the card) and a concise answer (the definition/back of the card). Also identify the subject/topic of each card. Format your response as a JSON array where each element has exactly: "question", "answer", "subject". Make questions end with "?" where appropriate. Return ONLY the JSON array, nothing else. If you cannot identify a subject, use "General".';
 
   try {
-    const aiResponse = await callAiModel(
+    var aiResponse = await callAiModel(
       'Here is the text from a document called "' + sourceName + '". Extract flashcards (question-answer pairs with subjects) from this text:\n\n' + text.substring(0, 8000),
       systemPrompt
     );
 
     // Extract JSON from response (in case AI adds surrounding text)
-    let jsonStr = aiResponse.trim();
-    const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
-    if (jsonMatch) jsonStr = jsonMatch[0];
+    var jsonStr = aiResponse.trim();
+    // Strip the prompt portion (generated_text includes the input prompt)
+    var jsonStart = jsonStr.indexOf('[');
+    if (jsonStart >= 0) jsonStr = jsonStr.substring(jsonStart);
+    var jsonEnd = jsonStr.lastIndexOf(']');
+    if (jsonEnd >= 0) jsonStr = jsonStr.substring(0, jsonEnd + 1);
 
-    const parsed = JSON.parse(jsonStr);
-    const defaultSubj = getImportDefaultSubject() || 'AI Generated';
-    const newCards = parsed.map(item => ({
-      term: item.question.trim(),
-      definition: item.answer.trim(),
-      subject: (item.subject && item.subject.trim()) ? item.subject.trim() : defaultSubj
-    })).filter(item => item.term && item.definition);
+    var parsed = JSON.parse(jsonStr);
+    var defaultSubj = getImportDefaultSubject() || 'AI Generated';
+    var newCards = parsed.map(function(item) {
+      return {
+        term: item.question.trim(),
+        definition: item.answer.trim(),
+        subject: (item.subject && item.subject.trim()) ? item.subject.trim() : defaultSubj
+      };
+    }).filter(function(item) { return item.term && item.definition; });
 
     flashcards = flashcards.concat(newCards);
     saveData();
@@ -4151,21 +4082,27 @@ async function generateFlashcardsFromPdf(text, sourceName) {
 }
 
 async function generateAiWrongOptions(question, correctAnswer, subject, numOptions) {
-  const systemPrompt = 'You are generating distractors (wrong answers) for a multiple-choice flashcard. Your distractors must look plausible and be thematically related to the question, but definitively incorrect. Do not repeat the correct answer. Return only a JSON array of strings.';
+  var systemPrompt = 'You are generating distractors (wrong answers) for a multiple-choice flashcard question. Your distractors must look plausible and be thematically related to the question, but definitively incorrect. Do not repeat the correct answer. Return only a plain text list, one distractor per line, without numbers or bullet points.';
 
-  const prompt = 'Question: "' + question + '"\n' +
+  var prompt = 'Question: "' + question + '"\n' +
     'Correct Answer: "' + correctAnswer + '"\n' +
     'Subject: "' + (subject || 'General') + '"\n' +
     'Number of distractors needed: ' + numOptions + '\n\n' +
-    'Generate ' + numOptions + ' plausible but incorrect distractors for this question. Each should be related to the topic but definitively wrong. Return as a JSON array of strings, e.g. ["distractor 1", "distractor 2", "distractor 3"].';
+    'Generate ' + numOptions + ' plausible but incorrect distractors for this question. Each should be related to the topic but definitively wrong.';
 
   try {
-    const response = await callAiModel(prompt, systemPrompt);
-    let jsonStr = response.trim();
-    const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
-    if (jsonMatch) jsonStr = jsonMatch[0];
-    const parsed = JSON.parse(jsonStr);
-    return parsed.filter(d => d && d.trim() && d.toLowerCase() !== correctAnswer.toLowerCase());
+    var response = await callAiModel(prompt, systemPrompt);
+    // Strip the prompt portion from generated_text
+    var answerStart = response.indexOf('<|assistant|>');
+    if (answerStart >= 0) response = response.substring(answerStart + 13);
+    var lines = response.trim().split('\n')
+      .map(function(l) { return l.trim(); })
+      .filter(function(l) { return l.length > 0 && l.toLowerCase() !== correctAnswer.toLowerCase(); });
+    // Remove leading numbers/bullets
+    lines = lines.map(function(l) {
+      return l.replace(/^[\d\-•\)]\s*/, '').trim();
+    }).filter(function(l) { return l.length > 0; });
+    return lines.slice(0, numOptions);
   } catch (err) {
     return [];
   }
@@ -4677,7 +4614,8 @@ updateShareButton();
 handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
-loadAiConfig();
+// Start loading AI model in background (lazy — only downloads when needed)
+setTimeout(function() { ensureAiModel(); }, 2000);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
