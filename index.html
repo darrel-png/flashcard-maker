@@ -4013,7 +4013,8 @@ let aiModelReady = false;
 const AI_MODEL_NAME = 'Xenova/TinyLlama-1.1B-Chat-v0.1';
 
 function aiForPdfImport() { return true; }
-function aiForTestChoices() { return true; }
+// Only use AI for test choices when model is already loaded — don't block test flow
+function aiForTestChoices() { return aiModelReady; }
 
 function updateAiStatus(msg, color) {
   const el = document.getElementById('ai-status');
@@ -4033,30 +4034,34 @@ function loadScript(url) {
 async function ensureAiModel() {
   if (aiModel) return aiModel;
   if (aiModelLoading) {
-    while (aiModelLoading) await new Promise(r => setTimeout(r, 200));
-    return aiModel;
+    // Non-blocking: return null if still loading so callers can fall back
+    return null;
   }
+  // Start loading in the background — first call triggers the download
   aiModelLoading = true;
   updateAiStatus('🤖 Loading AI model (~300 MB, first time only)...', 'var(--accent3)');
-  try {
-    if (typeof window.transformers === 'undefined') {
-      updateAiStatus('🤖 Downloading AI runtime...', 'var(--accent3)');
-      await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.2/dist/transformers.min.js');
+  // Kick off the load asynchronously; don't await here
+  (async function() {
+    try {
+      if (typeof window.transformers === 'undefined') {
+        updateAiStatus('🤖 Downloading AI runtime...', 'var(--accent3)');
+        await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.2/dist/transformers.min.js');
+      }
+      updateAiStatus('🤖 Loading TinyLlama 1.1B model...', 'var(--accent3)');
+      const { pipeline } = window.transformers;
+      aiModel = await pipeline('text-generation', AI_MODEL_NAME, {
+        quantized: true
+      });
+      aiModelReady = true;
+      updateAiStatus('✅ AI agent ready (TinyLlama 1.1B, running locally)', 'var(--accent3)');
+    } catch (err) {
+      aiModel = null;
+      aiModelReady = false;
+      updateAiStatus('⚠️ AI model failed to load: ' + err.message.substring(0, 120) + '. Using fallback heuristics.', 'var(--danger)');
     }
-    updateAiStatus('🤖 Loading TinyLlama 1.1B model...', 'var(--accent3)');
-    const { pipeline } = window.transformers;
-    aiModel = await pipeline('text-generation', AI_MODEL_NAME, {
-      quantized: true
-    });
-    aiModelReady = true;
-    updateAiStatus('✅ AI agent ready (TinyLlama 1.1B, running locally)', 'var(--accent3)');
-  } catch (err) {
-    aiModel = null;
-    aiModelReady = false;
-    updateAiStatus('⚠️ AI model failed to load: ' + err.message.substring(0, 120) + '. Using fallback.', 'var(--danger)');
-  }
-  aiModelLoading = false;
-  return aiModel;
+    aiModelLoading = false;
+  })();
+  return null; // Return null immediately — model is loading in background
 }
 
 async function callAiModel(prompt, systemPrompt) {
@@ -4650,6 +4655,14 @@ handleTestHistoryLink();
 updateGitHubSubmitButton();
 // Start loading AI model in background (lazy — only downloads when needed)
 setTimeout(function() { ensureAiModel(); }, 2000);
+
+// Also trigger model load when user switches to test tab (preloads before test starts)
+var testTabEl = document.querySelector('#test-tab');
+if (testTabEl) {
+  testTabEl.addEventListener('click', function() {
+    setTimeout(function() { ensureAiModel(); }, 300);
+  });
+}
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
