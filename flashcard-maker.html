@@ -1374,12 +1374,18 @@ function showLoginModal() {
   document.getElementById('login-mode-label').textContent = 'New to Flashcard Maker?';
   document.getElementById('login-mode-toggle').textContent = 'Create Account';
   document.getElementById('login-submit-btn').textContent = 'Sign In';
-  document.getElementById('login-modal').classList.add('active');
+  var modal = document.getElementById('login-modal');
+  modal.classList.add('active');
+  modal.style.display = 'flex';
+  modal.style.opacity = '1';
+  modal.style.visibility = 'visible';
   document.getElementById('login-email').focus();
 }
 
 function closeLoginModal() {
-  document.getElementById('login-modal').classList.remove('active');
+  var modal = document.getElementById('login-modal');
+  modal.classList.remove('active');
+  modal.style.display = 'none';
 }
 
 function toggleLoginMode() {
