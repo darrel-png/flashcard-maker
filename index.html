@@ -1465,23 +1465,41 @@ function updateAuthUI() {
 function syncToCloud() {
   if (!currentUser || !firebaseDb || syncingToCloud) return;
   syncingToCloud = true;
+  var syncBtn = document.getElementById('sync-cloud-btn');
+  var statusEl = document.getElementById('cloud-sync-status');
+  if (syncBtn) syncBtn.textContent = '⏳ Syncing...';
+  if (statusEl) {
+    statusEl.textContent = 'Syncing ' + flashcards.length + ' cards...';
+    statusEl.style.color = 'var(--accent)';
+  }
   firebaseDb.collection('users').doc(currentUser.uid).set({
     flashcards: flashcards,
     testHistory: testHistory,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true }).then(function() {
     syncingToCloud = false;
-    var statusEl = document.getElementById('file-status');
+    if (syncBtn) syncBtn.textContent = '☁️ Sync Now';
     if (statusEl) {
-      statusEl.textContent = '\u2713 ' + flashcards.length + ' flashcards synced to cloud (' + testHistory.length + ' history records)';
-      statusEl.style.display = 'block';
+      statusEl.textContent = '✓ ' + flashcards.length + ' cards synced (' + testHistory.length + ' history)';
       statusEl.style.color = 'var(--accent3)';
-      setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 5000);
+      setTimeout(function() { if (statusEl) statusEl.textContent = 'Signed in as ' + currentUser.email; }, 5000);
+    }
+    var fileStatus = document.getElementById('file-status');
+    if (fileStatus) {
+      fileStatus.textContent = '✓ ' + flashcards.length + ' flashcards synced to cloud (' + testHistory.length + ' history records)';
+      fileStatus.style.display = 'block';
+      fileStatus.style.color = 'var(--accent3)';
+      setTimeout(function() { if (fileStatus) fileStatus.textContent = ''; }, 5000);
     }
   }).catch(function(err) {
     syncingToCloud = false;
+    if (syncBtn) syncBtn.textContent = '☁️ Sync Now';
+    if (statusEl) {
+      statusEl.textContent = '✗ Sync failed: ' + err.message.substring(0, 60);
+      statusEl.style.color = 'var(--danger)';
+      setTimeout(function() { if (statusEl) statusEl.textContent = 'Signed in as ' + currentUser.email; }, 5000);
+    }
     console.error('Cloud sync failed:', err);
-    alert('Failed to sync: ' + err.message);
   });
 }
 
