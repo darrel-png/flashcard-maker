@@ -226,9 +226,9 @@
   }
   /* Table delete button — compact sizing */
   .table-delete-btn {
-    padding: 2px 6px;
-    font-size: 0.55rem;
-    min-height: 20px;
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    min-height: 26px;
   }
   .btn-sm { padding: 6px 12px; font-size: 0.8rem; image-rendering: pixelated; }
   .text-center { text-align: center; }
@@ -530,6 +530,23 @@
   .create-divider .btn-sm {
     margin-top: 0;
   }
+  /* Buttons behind Hide Table — clean visible style */
+  .create-divider .btn-sm.btn-secondary {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--border-dark);
+  }
+  .hidden-subjects-bar {
+    background: var(--bg);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+  }
+  .hidden-subjects-bar button,
+  #subject-quick-picks button {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--border-dark);
+  }
   /* Modal */
   .modal {
     position: fixed; top: 0; left: 0;
@@ -721,7 +738,7 @@
     th, td { padding: 8px 10px; }
 
     /* Table delete button — proper touch target on mobile */
-    .table-delete-btn { padding: 6px 8px; font-size: 0.6rem; min-width: 44px; min-height: 44px; }
+    .table-delete-btn { padding: 6px 10px; font-size: 0.7rem; min-width: 44px; min-height: 44px; }
 
     /* Flashcard — reduce height for small screens */
     .flashcard { min-height: 200px; padding: 24px 20px; }
