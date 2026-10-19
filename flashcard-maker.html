@@ -516,10 +516,10 @@
     position: fixed; top: 0; left: 0;
     width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.3);
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; visibility: hidden; transition: all 0.2s; z-index: 100;
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000;
   }
-  .modal.active { opacity: 1; visibility: visible; }
+  .modal.active { display: flex; }
   .modal-content {
     background: var(--card);
     padding: 28px;
@@ -1376,16 +1376,12 @@ function showLoginModal() {
   document.getElementById('login-submit-btn').textContent = 'Sign In';
   var modal = document.getElementById('login-modal');
   modal.classList.add('active');
-  modal.style.display = 'flex';
-  modal.style.opacity = '1';
-  modal.style.visibility = 'visible';
   document.getElementById('login-email').focus();
 }
 
 function closeLoginModal() {
   var modal = document.getElementById('login-modal');
   modal.classList.remove('active');
-  modal.style.display = 'none';
 }
 
 function toggleLoginMode() {
