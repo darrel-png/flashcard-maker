@@ -1053,16 +1053,22 @@
       <div class="row">
         <div class="form-group">
           <label for="question-type">Question type</label>
-          <select id="question-type" onchange="toggleMatchingSetSize()">
-            <option value="multiple-choice" selected>Multiple Choice</option>
-            <option value="matching">Matching</option>
-            <option value="identification">Identification</option>
-            <option value="all-mixed">All (Mixed Types)</option>
-          </select>
-          <div style="display: flex; align-items: flex-end; gap: 8px; margin-top: 6px;">
-            <input type="checkbox" id="randomize-question-types" onchange="toggleMatchingSetSize()" style="margin-top: 4px;">
-            <label for="randomize-question-types" style="margin: 0; font-size: 0.85rem;">Randomize question types</label>
-          </div>
+          <fieldset style="border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
+            <legend style="font-size: 0.8rem; color: var(--muted); padding: 0 2px;">Select types</legend>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 4px;">
+              <input type="checkbox" id="qt-multiple-choice" checked onchange="toggleMatchingSetSize()">
+              Multiple Choice
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 4px;">
+              <input type="checkbox" id="qt-matching" checked onchange="toggleMatchingSetSize()">
+              Matching
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 4px;">
+              <input type="checkbox" id="qt-identification" checked onchange="toggleMatchingSetSize()">
+              Identification
+            </label>
+          </fieldset>
+          <div class="hint" style="font-size:0.75rem; margin-top: 4px;">Multiple types checked = questions will be randomized between them.</div>
         </div>
         <div class="form-group" id="matching-set-size-group" style="display:none;">
           <label for="matching-set-size">Matching set size</label>
@@ -2582,8 +2588,26 @@ let testSettings = {
   showSubject: false,
   repeatWrong: true,
   questionType: 'multiple-choice',
+  questionTypes: {
+    'multiple-choice': true,
+    'matching': true,
+    'identification': true
+  },
+  randomizeQuestionTypes: true,
   matchingSetSize: 5
 };
+
+function getSelectedQuestionType() {
+  const mc = document.getElementById('qt-multiple-choice')?.checked;
+  const match = document.getElementById('qt-matching')?.checked;
+  const id = document.getElementById('qt-identification')?.checked;
+  const checked = [];
+  if (mc) checked.push('multiple-choice');
+  if (match) checked.push('matching');
+  if (id) checked.push('identification');
+  if (checked.length === 1) return checked[0];
+  return 'all-mixed';
+}
 
 function getTestSettings() {
   testSettings = {
@@ -2594,8 +2618,13 @@ function getTestSettings() {
     timer: parseInt(document.getElementById('test-timer').value),
     showSubject: document.getElementById('show-subject').value === 'true',
     repeatWrong: document.getElementById('repeat-wrong').value === 'true',
-    questionType: document.getElementById('question-type').value,
-    randomizeQuestionTypes: document.getElementById('randomize-question-types').checked,
+    questionType: getSelectedQuestionType(),
+    questionTypes: {
+      'multiple-choice': document.getElementById('qt-multiple-choice')?.checked ?? true,
+      'matching': document.getElementById('qt-matching')?.checked ?? true,
+      'identification': document.getElementById('qt-identification')?.checked ?? true
+    },
+    randomizeQuestionTypes: true, // Multiple types checked = automatically randomized
     matchingSetSize: parseInt(document.getElementById('matching-set-size')?.value || '5')
   };
 }
@@ -2613,11 +2642,14 @@ function toggleSettings() {
 }
 
 function toggleMatchingSetSize() {
-  const qType = document.getElementById('question-type');
   const group = document.getElementById('matching-set-size-group');
-  const randomize = document.getElementById('randomize-question-types');
   if (!group) return;
-  if (qType && (qType.value === 'matching' || qType.value === 'all-mixed') || (randomize && randomize.checked)) {
+  const mcEnabled = document.getElementById('qt-multiple-choice')?.checked;
+  const matchEnabled = document.getElementById('qt-matching')?.checked;
+  const idEnabled = document.getElementById('qt-identification')?.checked;
+  // Show matching set size when any type is checked that involves multiple questions per set
+  // (matching always uses sets; multiple-choice and identification use individual questions)
+  if (matchEnabled) {
     group.style.display = 'block';
   } else {
     group.style.display = 'none';
@@ -3094,11 +3126,13 @@ async function showTestQuestion() {
     return;
   }
 
-  // If randomize question types is enabled, OR all-mixed mode is selected, pick a random type for this question
-  let effectiveType = testSettings.questionType;
-  if (testSettings.randomizeQuestionTypes || testSettings.questionType === 'all-mixed') {
-    const types = ['multiple-choice', 'matching', 'identification'];
-    effectiveType = types[Math.floor(Math.random() * types.length)];
+  // Build list of enabled question types from checklist
+  const enabledTypes = Object.keys(testSettings.questionTypes || {}).filter(t => testSettings.questionTypes[t]);
+  let effectiveType;
+  if (enabledTypes.length <= 1) {
+    effectiveType = enabledTypes[0] || 'multiple-choice';
+  } else {
+    effectiveType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)];
   }
   currentEffectiveType = effectiveType;
 
