@@ -1421,7 +1421,24 @@ function loginWithEmail() {
 function loginWithGoogle() {
   var provider = new firebase.auth.GoogleAuthProvider();
   firebaseAuth.signInWithPopup(provider)
-    .catch(function(err) { alert('Google login failed: ' + err.message); });
+    .then(function(result) {
+      closeLoginModal();
+    })
+    .catch(function(err) {
+      if (err.code === 'auth/unauthorized-domain') {
+        var msg = 'Google Sign-In requires this domain to be authorized.\n\n' +
+                  '1. Go to: https://console.firebase.google.com/project/' + firebaseConfig.projectId + '/authentication/settings\n' +
+                  '2. Under "Authorized domains", add:\n' +
+                  '   - flashcard-maker-black.vercel.app\n' +
+                  '   - localhost\n' +
+                  '3. Refresh the page and try again.';
+        alert(msg);
+      } else if (err.code === 'auth/popup-closed') {
+        alert('Sign-in popup was closed. Please try again or use email/password.');
+      } else {
+        alert('Google login failed: ' + err.message);
+      }
+    });
 }
 
 function logout() {
