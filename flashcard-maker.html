@@ -690,6 +690,10 @@
     .stats-bar > span:first-child { font-size: 0.8rem; }
     #batch-section { display: flex !important; flex-wrap: wrap; gap: 4px; }
 
+    /* Table area buttons — stack on mobile */
+    .create-divider > div[style*="display: flex"] { flex-direction: column; gap: 4px; align-items: stretch; }
+    .hidden-subjects-bar { flex-direction: column; gap: 6px; }
+
     /* Table — scrollable on mobile */
     .data-table-wrapper { max-height: 300px; }
     table { font-size: 0.8rem; }
@@ -768,7 +772,6 @@
         <div class="stats-bar create-options">
           <span>Total cards: <span class="count" id="card-count">0</span></span>
           <div class="action-grid">
-            <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Ungroup</button>
             <button class="btn-sm btn-primary" onclick="randomizeCardOrder()" id="randomize-btn">🔀 Randomize</button>
             <button class="btn-sm btn-secondary" onclick="toggleCreateForm()" id="create-form-hide-btn">Hide Form</button>
             <button class="btn-sm btn-danger" onclick="clearAll()">Clear All</button>
@@ -840,7 +843,10 @@
     <!-- Visual separator - on top of table -->
     <div class="create-divider">
       <span class="create-divider-label">Your Flashcards</span>
-      <button class="btn-sm btn-secondary" onclick="toggleCreateTable()" id="create-table-hide-btn">Hide Table</button>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button class="btn-sm btn-secondary" onclick="toggleCreateTable()" id="create-table-hide-btn">Hide Table</button>
+        <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Group by Subject</button>
+      </div>
       <div id="hidden-subjects-bar" class="hidden-subjects-bar" style="display:none;">
         <span class="hint">Hidden subjects:</span>
         <span id="hidden-subjects-list"></span>
