@@ -4139,7 +4139,9 @@ async function ensureAiModel() {
     try {
       if (typeof window.transformers === 'undefined') {
         updateAiStatus('🤖 Downloading AI runtime...', 'var(--accent3)');
-        await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.0/dist/transformers.min.js');
+        // @xenova/transformers v2.x is an ES module — use dynamic import instead of script tag
+        const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.0/dist/transformers.min.js');
+        window.transformers = mod;
       }
       updateAiStatus('🤖 Loading Blenderbot 400M model...', 'var(--accent3)');
       const { pipeline } = window.transformers;
