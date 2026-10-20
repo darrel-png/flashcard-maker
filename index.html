@@ -3270,18 +3270,10 @@ async function showTestQuestion() {
     questionText = card.term;
     correctAnswer = card.definition;
     wrongOptions = collectWrongOptions(card, 'definition', correctAnswer);
-    if (aiForTestChoices()) {
-      const aiOpts = await generateAiWrongOptions(card.term, correctAnswer, card.subject, numWrong);
-      if (aiOpts.length > 0) wrongOptions = aiOpts;
-    }
   } else {
     questionText = card.definition;
     correctAnswer = card.term;
     wrongOptions = collectWrongOptions(card, 'term', correctAnswer);
-    if (aiForTestChoices()) {
-      const aiOpts = await generateAiWrongOptions(card.definition, correctAnswer, card.subject, numWrong);
-      if (aiOpts.length > 0) wrongOptions = aiOpts;
-    }
   }
 
   // If not enough same-subject options, reduce choices to available count rather than pad
@@ -3323,11 +3315,42 @@ async function showTestQuestion() {
   const labelEl = document.querySelector('.test-question .label');
   if (labelEl) labelEl.textContent = directionLabel;
 
-  // Build options (shuffle if enabled)
+  // Build and render options immediately with heuristic options (non-blocking)
   const options = [correctAnswer, ...wrongOptions];
   if (testSettings.shuffleAnswers) {
     options.sort(() => Math.random() - 0.5);
   }
+  renderOptions(correctAnswer, options);
+
+  // Hide result banner
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('result-banner').className = 'result-banner';
+
+  document.getElementById('test-index').textContent = testQuestionIndex + 1;
+  document.getElementById('test-total').textContent = testQuestions.length;
+
+  // Start timer if enabled
+  startTimer();
+
+  // Try AI options in the background — does NOT block the UI
+  // If AI returns better options, they replace the heuristic options shown above
+  if (aiForTestChoices()) {
+    const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
+    const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
+    generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, numWrong)
+      .then(function(aiOpts) {
+        if (aiOpts.length > 0) {
+          currentTestQuestion.wrongOptions = aiOpts;
+          const newOptions = [correctAnswer, ...aiOpts];
+          if (testSettings.shuffleAnswers) newOptions.sort(() => Math.random() - 0.5);
+          renderOptions(correctAnswer, newOptions);
+        }
+      })
+      .catch(function() { /* AI failed, heuristic options already shown */ });
+  }
+}
+
+function renderOptions(correctAnswer, options) {
   const optionsContainer = document.getElementById('options-container');
   optionsContainer.innerHTML = '';
   options.forEach(opt => {
@@ -3338,14 +3361,6 @@ async function showTestQuestion() {
     optionsContainer.appendChild(btn);
   });
 
-  // Hide result banner
-  document.getElementById('result-banner').style.display = 'none';
-  document.getElementById('result-banner').className = 'result-banner';
-
-  document.getElementById('test-index').textContent = testQuestionIndex + 1;
-  document.getElementById('test-total').textContent = testQuestions.length;
-
-  // Start timer if enabled
   startTimer();
 }
 
@@ -4118,7 +4133,7 @@ const AI_MODEL_NAME = 'Xenova/gpt2';
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
 // (falls back to same-subject heuristic options) and upgrades when the model finishes loading
-function aiForTestChoices() { return true; }
+function aiForTestChoices() { return aiModelReady; }
 
 function updateAiStatus(msg, color) {
   const el = document.getElementById('ai-status');
@@ -4177,16 +4192,19 @@ async function ensureAiModel() {
 }
 
 async function callAiModel(prompt, systemPrompt) {
+  // Don't attempt model loading during active test — only use model if already fully ready
+  if (!aiModelReady || !aiModel) throw new Error('AI model not available');
   const model = await ensureAiModel();
   if (!model) throw new Error('AI model not available');
   // GPT-2 uses text-generation: combine system + user prompt with clear delimiters
   // The generated_text will include the full prompt, so we strip it at the delimiter
   var fullPrompt = systemPrompt + '\n\nInput: ' + prompt + '\n\nOutput:\n';
   var result = await model(fullPrompt, {
-    max_new_tokens: 1000,
-    temperature: 0.7,
+    max_new_tokens: 150,
+    temperature: 0.3,
     do_sample: true,
-    top_p: 0.9
+    top_p: 0.9,
+    early_stopping: true
   });
   // Strip the input prompt, return only the generated continuation
   var generated = result[0].generated_text;
