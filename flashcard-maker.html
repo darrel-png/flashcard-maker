@@ -4139,7 +4139,7 @@ async function ensureAiModel() {
     try {
       if (typeof window.transformers === 'undefined') {
         updateAiStatus('🤖 Downloading AI runtime...', 'var(--accent3)');
-        await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.2/dist/transformers.min.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.0/dist/transformers.min.js');
       }
       updateAiStatus('🤖 Loading Blenderbot 400M model...', 'var(--accent3)');
       const { pipeline } = window.transformers;
