@@ -917,6 +917,7 @@
     <button class="btn-sm btn-secondary" id="logout-btn" onclick="logout()" style="display:none;">Logout</button>
     <button class="btn-sm btn-primary" id="sync-cloud-btn" onclick="syncToCloud()" style="display:none;">☁️ Sync Now</button>
     <button class="btn-sm btn-secondary" id="dark-mode-btn" onclick="toggleDarkMode()" style="display:inline-block; margin-left:auto;">🌙 Dark</button>
+    <span id="ai-header-status" class="hint" style="margin-left:8px; color:var(--accent3); font-size:0.8rem; display:none;">🤖 AI: Loading...</span>
     <span id="cloud-sync-status" class="hint" style="margin-left:8px; color:var(--muted);">Not signed in</span>
   </div>
 
@@ -1313,7 +1314,7 @@
     <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
-      <p class="hint">AI is always on. Uses a free open-source model (TinyLlama 1.1B) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~300 MB) and caches locally.</p>
+      <p class="hint">AI is always on for all users. Uses a free open-source model (TinyLlama 1.1B) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~300 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
       <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
     </div>
 
@@ -1921,7 +1922,7 @@ function renderDataTable() {
           <td>${idx}</td>
           <td>${escapeHTML(card.term)}</td>
           <td>${escapeHTML(card.definition)}</td>
-          <td>${escapeHTML(subj)}</td>
+          <td>${escapeHTML(subj)}${card.isAiGenerated ? ' <span class="hint" style="color:var(--accent3); font-size:0.7rem;">🤖 AI</span>' : ''}</td>
           <td class="text-center">
             ${editModeActive
               ? `<div class="table-btn-group"><button class="btn-sm btn-secondary" onclick="openEditModal(${origIdx})">Edit</button>
@@ -1950,6 +1951,7 @@ function renderDataTable() {
         <td>${escapeHTML(card.definition)}</td>
         <td>
           <span style="color:${subjectColor(subj)}; font-weight:600;">${escapeHTML(subj)}</span>
+          ${card.isAiGenerated ? '<span class=\"hint\" style=\"margin-left:4px; color:var(--accent3); font-size:0.7rem;\">🤖 AI</span>' : ''}
           <button class="subject-hide-btn" onclick="toggleSubjectHidden('${escapeHTMLAttr(subj)}')" title="Hide all ${escapeHTMLAttr(subj)} cards">×</button>
         </td>
         <td class="text-center">
@@ -2426,7 +2428,7 @@ function renderStudyTable() {
           <td>${idx}</td>
           <td>${escapeHTML(card.term)}</td>
           <td>${escapeHTML(card.definition)}</td>
-          <td>${escapeHTML(subj)}</td>
+          <td>${escapeHTML(subj)}${card.isAiGenerated ? ' <span class="hint" style="color:var(--accent3); font-size:0.7rem;">🤖 AI</span>' : ''}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -4097,12 +4099,19 @@ let aiModelReady = false;
 const AI_MODEL_NAME = 'Xenova/TinyLlama-1.1B-Chat-v0.1';
 
 function aiForPdfImport() { return true; }
-// Only use AI for test choices when model is already loaded — don't block test flow
-function aiForTestChoices() { return aiModelReady; }
+// AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
+// (falls back to same-subject heuristic options) and upgrades when the model finishes loading
+function aiForTestChoices() { return true; }
 
 function updateAiStatus(msg, color) {
   const el = document.getElementById('ai-status');
   if (el) { el.textContent = msg; el.style.color = color; }
+  const headerEl = document.getElementById('ai-header-status');
+  if (headerEl) {
+    headerEl.textContent = msg;
+    headerEl.style.color = color;
+    headerEl.style.display = 'inline-block';
+  }
 }
 
 function loadScript(url) {
@@ -4189,7 +4198,8 @@ async function generateFlashcardsFromPdf(text, sourceName) {
       return {
         term: item.question.trim(),
         definition: item.answer.trim(),
-        subject: (item.subject && item.subject.trim()) ? item.subject.trim() : defaultSubj
+        subject: (item.subject && item.subject.trim()) ? item.subject.trim() : defaultSubj,
+        isAiGenerated: true
       };
     }).filter(function(item) { return item.term && item.definition; });
 
@@ -4756,8 +4766,8 @@ handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
 loadDarkMode();
-// Start loading AI model in background (lazy — only downloads when needed)
-setTimeout(function() { ensureAiModel(); }, 2000);
+// Start loading AI model in background on page load (delayed to avoid blocking initial render)
+setTimeout(function() { ensureAiModel(); }, 1000);
 
 // Also trigger model load when user switches to test tab (preloads before test starts)
 var testTabEl = document.querySelector('#test-tab');
