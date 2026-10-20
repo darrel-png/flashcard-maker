@@ -1314,7 +1314,7 @@
     <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
-      <p class="hint">AI is always on for all users. Uses a free open-source model (TinyLlama 1.1B) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~300 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
+      <p class="hint">AI is always on for all users. Uses a free open-source model (Blenderbot 400M Distill) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~130 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
       <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
     </div>
 
@@ -4091,12 +4091,13 @@ async function handleFileSelect(event) {
 }
 
 // ---------- AI Agent Functions (Free Browser Model) ----------
-// Uses @xenova/transformers to run TinyLlama 1.1B Chat directly in the browser — no API key needed.
+// Uses @xenova/transformers to run Blenderbot 400M Distill directly in the browser — no API key needed.
+// Blenderbot is a public, open-source sequence-to-sequence model accessible from HuggingFace.
 
 let aiModel = null;
 let aiModelLoading = false;
 let aiModelReady = false;
-const AI_MODEL_NAME = 'Xenova/TinyLlama-1.1B-Chat-v0.1';
+const AI_MODEL_NAME = 'Xenova/blenderbot-400M-distill';
 
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
@@ -4132,7 +4133,7 @@ async function ensureAiModel() {
   }
   // Start loading in the background — first call triggers the download
   aiModelLoading = true;
-  updateAiStatus('🤖 Loading AI model (~300 MB, first time only)...', 'var(--accent3)');
+  updateAiStatus('🤖 Loading AI model (~130 MB, first time only)...', 'var(--accent3)');
   // Kick off the load asynchronously; don't await here
   (async function() {
     try {
@@ -4140,13 +4141,13 @@ async function ensureAiModel() {
         updateAiStatus('🤖 Downloading AI runtime...', 'var(--accent3)');
         await loadScript('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.2/dist/transformers.min.js');
       }
-      updateAiStatus('🤖 Loading TinyLlama 1.1B model...', 'var(--accent3)');
+      updateAiStatus('🤖 Loading Blenderbot 400M model...', 'var(--accent3)');
       const { pipeline } = window.transformers;
-      aiModel = await pipeline('text-generation', AI_MODEL_NAME, {
+      aiModel = await pipeline('text2text-generation', AI_MODEL_NAME, {
         quantized: true
       });
       aiModelReady = true;
-      updateAiStatus('✅ AI agent ready (TinyLlama 1.1B, running locally)', 'var(--accent3)');
+      updateAiStatus('✅ AI agent ready (Blenderbot 400M, running locally)', 'var(--accent3)');
     } catch (err) {
       aiModel = null;
       aiModelReady = false;
@@ -4160,7 +4161,9 @@ async function ensureAiModel() {
 async function callAiModel(prompt, systemPrompt) {
   const model = await ensureAiModel();
   if (!model) throw new Error('AI model not available');
-  var fullPrompt = '<|system|>\n' + systemPrompt + '\n<|user|>\n' + prompt + '\n<|assistant|>\n';
+  // Blenderbot uses text2text format: system prompt + user prompt as single input
+  // No special tokens needed — the model returns only the generated output
+  var fullPrompt = systemPrompt + '\n\n' + prompt;
   var result = await model(fullPrompt, {
     max_new_tokens: 1000,
     temperature: 0.7,
@@ -4184,9 +4187,8 @@ async function generateFlashcardsFromPdf(text, sourceName) {
       systemPrompt
     );
 
-    // Extract JSON from response (in case AI adds surrounding text)
+    // Extract JSON from response — Blenderbot (text2text) returns only generated text
     var jsonStr = aiResponse.trim();
-    // Strip the prompt portion (generated_text includes the input prompt)
     var jsonStart = jsonStr.indexOf('[');
     if (jsonStart >= 0) jsonStr = jsonStr.substring(jsonStart);
     var jsonEnd = jsonStr.lastIndexOf(']');
@@ -4225,9 +4227,7 @@ async function generateAiWrongOptions(question, correctAnswer, subject, numOptio
 
   try {
     var response = await callAiModel(prompt, systemPrompt);
-    // Strip the prompt portion from generated_text
-    var answerStart = response.indexOf('<|assistant|>');
-    if (answerStart >= 0) response = response.substring(answerStart + 13);
+    // Blenderbot (text2text) returns only the generated text — no prompt stripping needed
     var lines = response.trim().split('\n')
       .map(function(l) { return l.trim(); })
       .filter(function(l) { return l.length > 0 && l.toLowerCase() !== correctAnswer.toLowerCase(); });
