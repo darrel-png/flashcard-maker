@@ -1314,7 +1314,7 @@
     <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
-      <p class="hint">AI is always on for all users. Uses a free open-source model (Blenderbot 400M Distill) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~130 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
+      <p class="hint">AI is always on for all users. Uses a free open-source model (GPT-2) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
       <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
     </div>
 
@@ -4097,7 +4097,7 @@ async function handleFileSelect(event) {
 let aiModel = null;
 let aiModelLoading = false;
 let aiModelReady = false;
-const AI_MODEL_NAME = 'Xenova/blenderbot-400M-distill';
+const AI_MODEL_NAME = 'Xenova/gpt2';
 
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
@@ -4133,7 +4133,7 @@ async function ensureAiModel() {
   }
   // Start loading in the background — first call triggers the download
   aiModelLoading = true;
-  updateAiStatus('🤖 Loading AI model (~130 MB, first time only)...', 'var(--accent3)');
+  updateAiStatus('🤖 Loading AI model (~122 MB, first time only)...', 'var(--accent3)');
   // Kick off the load asynchronously; don't await here
   (async function() {
     try {
@@ -4143,13 +4143,13 @@ async function ensureAiModel() {
         const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.0/dist/transformers.min.js');
         window.transformers = mod;
       }
-      updateAiStatus('🤖 Loading Blenderbot 400M model...', 'var(--accent3)');
+      updateAiStatus('🤖 Loading GPT-2 model...', 'var(--accent3)');
       const { pipeline } = window.transformers;
-      aiModel = await pipeline('text2text-generation', AI_MODEL_NAME, {
+      aiModel = await pipeline('text-generation', AI_MODEL_NAME, {
         quantized: true
       });
       aiModelReady = true;
-      updateAiStatus('✅ AI agent ready (Blenderbot 400M, running locally)', 'var(--accent3)');
+      updateAiStatus('✅ AI agent ready (GPT-2, running locally)', 'var(--accent3)');
     } catch (err) {
       aiModel = null;
       aiModelReady = false;
@@ -4163,16 +4163,22 @@ async function ensureAiModel() {
 async function callAiModel(prompt, systemPrompt) {
   const model = await ensureAiModel();
   if (!model) throw new Error('AI model not available');
-  // Blenderbot uses text2text format: system prompt + user prompt as single input
-  // No special tokens needed — the model returns only the generated output
-  var fullPrompt = systemPrompt + '\n\n' + prompt;
+  // GPT-2 uses text-generation: combine system + user prompt with clear delimiters
+  // The generated_text will include the full prompt, so we strip it at the delimiter
+  var fullPrompt = systemPrompt + '\n\nInput: ' + prompt + '\n\nOutput:\n';
   var result = await model(fullPrompt, {
     max_new_tokens: 1000,
     temperature: 0.7,
     do_sample: true,
     top_p: 0.9
   });
-  return result[0].generated_text;
+  // Strip the input prompt, return only the generated continuation
+  var generated = result[0].generated_text;
+  var outputStart = generated.lastIndexOf('Output:\n');
+  if (outputStart >= 0) {
+    return generated.substring(outputStart + 8); // 8 = len('Output:\n')
+  }
+  return generated;
 }
 
 async function generateFlashcardsFromPdf(text, sourceName) {
@@ -4229,7 +4235,7 @@ async function generateAiWrongOptions(question, correctAnswer, subject, numOptio
 
   try {
     var response = await callAiModel(prompt, systemPrompt);
-    // Blenderbot (text2text) returns only the generated text — no prompt stripping needed
+    // callAiModel already strips the prompt; response is just the generated distractors
     var lines = response.trim().split('\n')
       .map(function(l) { return l.trim(); })
       .filter(function(l) { return l.length > 0 && l.toLowerCase() !== correctAnswer.toLowerCase(); });
