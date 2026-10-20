@@ -100,9 +100,9 @@
   }
   .container { max-width: 1800px; margin: 0 auto; position: relative; z-index: 1; }
 
-  /* Dark mode overrides */
-  body.dark-mode h1 { text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.4); }
-  body.dark-mode label { text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.3); }
+  /* Dark mode overrides — shadows must be darker than the dark background to be visible */
+  body.dark-mode h1 { text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.7); }
+  body.dark-mode label { text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.5); }
   body.dark-mode .tabs,
   body.dark-mode .tab-content,
   body.dark-mode .flashcard,
@@ -119,17 +119,23 @@
   body.dark-mode input,
   body.dark-mode textarea,
   body.dark-mode select {
-    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75) !important;
   }
-  body.dark-mode .flashcard:hover { box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.4) !important; }
-  body.dark-mode .tabs { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
-  body.dark-mode .tab-content { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
-  body.dark-mode .flashcard { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .flashcard:hover { box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.75) !important; }
+  body.dark-mode .tabs { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode .tab-content { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode .flashcard { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
   body.dark-mode .timer-bar { background: rgba(255, 255, 255, 0.1); }
-  body.dark-mode .subject-hide-btn { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4); }
-  body.dark-mode .btn-sm { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4); }
-  body.dark-mode .table-delete-btn { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4); }
-  body.dark-mode fieldset.question-type-checklist { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4); }
+  body.dark-mode .subject-hide-btn { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode .btn-sm { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode .table-delete-btn { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode fieldset.question-type-checklist { box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75); }
+  /* Table header and row hover in dark mode */
+  body.dark-mode #data-table thead th { background: var(--dark-card); }
+  body.dark-mode tr:hover td { background: var(--dark-card-alt); }
+  body.dark-mode .test-question { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode .score-display { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
+  body.dark-mode .modal-content { box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.75); }
 
   h1 {
     font-size: 2rem; margin-bottom: 8px;
