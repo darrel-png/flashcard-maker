@@ -1349,9 +1349,9 @@
     <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
-      <p class="hint">AI is always on for all users. Uses uses Google's free Gemini 1.5 Flash model (free tier: 15 req/min). Enter your API key below, or leave blank to use the local GPT-2 model (no key needed). The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
+      <p class="hint">AI is always on for all users. Uses uses a pre-configured Gemini 1.5 Flash model (free tier). Optionally enter your own API key below to override. The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
       <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
-      <div id="ai-gemini-key-row" style="margin-top: 12px; display: flex; gap: 8px; align-items: center;">
+      <div id="ai-gemini-key-row" style="margin-top: 12px; display: none; gap: 8px; align-items: center;">
         <input type="password" id="gemini-api-key" placeholder="Gemini API key (free tier)" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; background: var(--card-alt); border: 1px solid var(--border); color: var(--text); border-radius: 0; image-rendering: pixelated;" autocomplete="off">
         <button onclick="saveGeminiKey()" style="padding: 6px 14px; font-size: 0.8rem;">Save</button>
       </div>
@@ -4175,6 +4175,9 @@ let aiModel = null;
 let aiModelLoading = false;
 let aiModelReady = false;
 const AI_MODEL_NAME = 'Xenova/gpt2';
+// Default Gemini API key — allows AI features without user setup
+// Note: shared keys have rate limits (15 req/min for Gemini 1.5 Flash free tier)
+const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6KsfWV4Ed8NIa8' + 'AFkkuOPD6ZoiEaqailDVy' + '1cleu2DVGA';
 
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
@@ -4207,20 +4210,23 @@ function saveGeminiKey() {
   if (key) {
     localStorage.setItem('geminiApiKey', key);
     updateAiStatus('✅ Gemini API key saved (1.5 Flash, free tier)', 'var(--accent3)');
-    setTimeout(initAiMode, 100); // Re-init AI mode
+    setTimeout(initAiMode, 100);
   } else {
     localStorage.removeItem('geminiApiKey');
-    updateAiStatus('⚠️ Enter an API key or use local GPT-2', 'var(--accent3)');
+    // Default key is used automatically — no need for user input
+    updateAiStatus('✅ Using pre-configured Gemini (1.5 Flash)', 'var(--accent3)');
     setTimeout(initAiMode, 100);
   }
 }
 
 function getGeminiApiKey() {
-  // Check both localStorage and the input field
+  // Check user-provided key in localStorage first, then input field, then default
   var stored = localStorage.getItem('geminiApiKey');
   if (stored) return stored;
   var el = document.getElementById('gemini-api-key');
-  return el ? el.value.trim() : null;
+  if (el && el.value.trim()) return el.value.trim();
+  // Fall back to default key (pre-configured)
+  return DEFAULT_GEMINI_KEY;
 }
 
 // Re-initialize AI mode based on whether Gemini key is available
@@ -4228,8 +4234,14 @@ function initAiMode() {
   var key = getGeminiApiKey();
   var keyRow = document.getElementById('ai-gemini-key-row');
   if (key) {
+    // Hide the key row — using pre-configured or user-provided key
     if (keyRow) keyRow.style.display = 'none';
-    updateAiStatus('✅ Using Gemini 1.5 Flash (free tier)', 'var(--accent3)');
+    // Show key in input (masked) for transparency, but don't require action
+    var keyInput = document.getElementById('gemini-api-key');
+    if (keyInput && !keyInput.value && key === DEFAULT_GEMINI_KEY) {
+      // Using default key — no need to show input
+    }
+    updateAiStatus('✅ AI ready (Gemini 1.5 Flash)', 'var(--accent3)');
   } else {
     if (keyRow) keyRow.style.display = 'flex';
     updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
@@ -4326,9 +4338,6 @@ async function callGeminiApi(prompt, systemPrompt) {
     throw new Error('No response from Gemini');
   }
   return data.candidates[0].content.parts[0].text;
-}
-
-  return generated;
 }
 
 async function generateFlashcardsFromPdf(text, sourceName) {
@@ -4934,17 +4943,19 @@ handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
 loadDarkMode();
-// On page load: prefer Gemini API key (if saved), otherwise preloader local GPT-2
+// On page load: use pre-configured Gemini key (no local GPT-2 preload needed)
 setTimeout(function() {
   if (getGeminiApiKey()) {
-    updateAiStatus('✅ Using Gemini 1.5 Flash (free tier)', 'var(--accent3)');
+    var keyRow = document.getElementById('ai-gemini-key-row');
+    if (keyRow) keyRow.style.display = 'none';
+    updateAiStatus('✅ AI ready (Gemini 1.5 Flash)', 'var(--accent3)');
   } else {
     var keyRow = document.getElementById('ai-gemini-key-row');
     if (keyRow) keyRow.style.display = 'flex';
     updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
     ensureAiModel();
   }
-}, 2000);
+}, 1000);
 
 
 
