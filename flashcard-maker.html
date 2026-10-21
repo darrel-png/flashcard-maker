@@ -324,29 +324,56 @@
     gap: 4px;
     align-items: center;
   }
-  /* Delete subject dropdown in action bar */
+  /* Delete subject dropdown — sleek Copilot Chat style, matches action bar height */
   .delete-subject-select {
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    background: var(--card-alt);
-    border: 1px solid var(--border);
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--card);
+    border: 1px solid var(--border-dark);
     color: var(--danger);
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    height: 28px;
+    line-height: 1;
   }
-  .delete-subject-select:hover,
-  .delete-subject-select:focus {
+  .delete-subject-select:hover {
     background: var(--danger);
-    color: var(--bg);
+    color: var(--text);
+    border-color: var(--danger);
   }
-  /* Delete button in subject group header */
+  .delete-subject-select:focus {
+    outline: none;
+    border-color: var(--danger);
+    box-shadow: 0 0 0 2px rgba(251, 111, 111, 0.2);
+  }
+  /* Delete button in subject group header — clean, subtle */
   .subject-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    border: 1px solid var(--danger);
+    background: transparent;
     color: var(--danger);
-    opacity: 0.7;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    opacity: 0.6;
   }
   .subject-delete-btn:hover {
     opacity: 1;
-    color: var(--danger);
+    background: var(--danger);
+    color: var(--text);
+    border-color: var(--danger);
   }
   /* Table delete button — compact sizing */
   .table-delete-btn {
@@ -1075,7 +1102,7 @@
       <div class="btn-group">
         <button class="btn-sm btn-secondary" onclick="toggleCreateTable()" id="create-table-hide-btn">Hide Table</button>
         <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Group by Subject</button>
-        <select class="btn-sm btn-danger delete-subject-select" id="delete-subject-select" onchange="deleteSubjectFromDropdown(this.value)" title="Delete all cards in a subject">
+        <select class="delete-subject-select" id="delete-subject-select" onchange="deleteSubjectFromDropdown(this.value)" title="Delete all cards in a subject">
           <option value="">🗑 Delete Subject</option>
         </select>
       </div>
@@ -1999,7 +2026,7 @@ function renderDataTable() {
       headerTr.innerHTML = `<td colspan="6" style="padding:6px 12px; font-weight:600; color:${subjectColor(subj)}; text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; display:flex; justify-content:space-between; align-items:center;">
         <span>${escapeHTML(subj)} <span class="hint" style="color:var(--muted); font-size:0.75rem;">(${groups[subj].length} cards)</span></span>
         <button class="subject-hide-btn" onclick="toggleSubjectHidden('${escapeHTMLAttr(subj)}')" title="Hide all ${escapeHTMLAttr(subj)} cards">×</button>
-        <button class="subject-hide-btn subject-delete-btn" onclick="deleteSubjectCards('${escapeHTMLAttr(subj)}')" title="Delete all ${escapeHTMLAttr(subj)} cards">🗑</button>
+        <button class="subject-delete-btn" onclick="deleteSubjectCards('${escapeHTMLAttr(subj)}')" title="Delete all ${escapeHTMLAttr(subj)} cards">🗑</button>
       </td>`;
       tbody.appendChild(headerTr);
       // Card rows within this group
