@@ -3222,10 +3222,23 @@ function collectWrongOptions(cardEntry, field, exclude) {
     }
   }
 
+  // Pad with any remaining unique values from testQuestions if not enough distractors found
+  // This ensures we always return exactly 'need' options (or as many as available)
+  if (result.length < need) {
+    for (const c of testQuestions) {
+      if (result.length >= need) break;
+      const val = c[field].trim();
+      if (val !== excludeTrimmed && !seen.has(val) && !result.some(r => r.val === val)) {
+        seen.add(val);
+        result.push({val, card: c});
+      }
+    }
+  }
+
   return result.slice(0, need).map(e => e.val).sort(() => Math.random() - 0.5);
 }
 
-async function showTestQuestion() {
+function showTestQuestion() {
   if (testQuestionIndex >= testQuestions.length) {
     showTestResults();
     return;
@@ -3276,10 +3289,6 @@ async function showTestQuestion() {
     wrongOptions = collectWrongOptions(card, 'term', correctAnswer);
   }
 
-  // If not enough same-subject options, reduce choices to available count rather than pad
-  if (wrongOptions.length < numWrong && wrongOptions.length > 0) {
-    wrongOptions = wrongOptions; // use what we have — fewer choices but all relevant
-  }
 
   currentTestQuestion = { questionText, correctAnswer, wrongOptions, card };
 
@@ -3332,22 +3341,6 @@ async function showTestQuestion() {
   // Start timer if enabled
   startTimer();
 
-  // Try AI options in the background — does NOT block the UI
-  // If AI returns better options, they replace the heuristic options shown above
-  if (aiForTestChoices()) {
-    const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
-    const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
-    generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, numWrong)
-      .then(function(aiOpts) {
-        if (aiOpts.length > 0) {
-          currentTestQuestion.wrongOptions = aiOpts;
-          const newOptions = [correctAnswer, ...aiOpts];
-          if (testSettings.shuffleAnswers) newOptions.sort(() => Math.random() - 0.5);
-          renderOptions(correctAnswer, newOptions);
-        }
-      })
-      .catch(function() { /* AI failed, heuristic options already shown */ });
-  }
 }
 
 function renderOptions(correctAnswer, options) {
@@ -3360,8 +3353,6 @@ function renderOptions(correctAnswer, options) {
     btn.onclick = () => selectOption(opt, btn);
     optionsContainer.appendChild(btn);
   });
-
-  startTimer();
 }
 
 // ---------- Matching Question Type ----------
@@ -4808,16 +4799,10 @@ handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
 loadDarkMode();
-// Start loading AI model in background on page load (delayed to avoid blocking initial render)
-setTimeout(function() { ensureAiModel(); }, 1000);
+// AI model only loads on demand when user explicitly enables it (e.g. for PDF import AI features)
+// Do NOT preload during/after test start — causes WASM inference to block the main thread
 
-// Also trigger model load when user switches to test tab (preloads before test starts)
-var testTabEl = document.querySelector('#test-tab');
-if (testTabEl) {
-  testTabEl.addEventListener('click', function() {
-    setTimeout(function() { ensureAiModel(); }, 300);
-  });
-}
+
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
