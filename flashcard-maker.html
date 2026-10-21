@@ -1429,6 +1429,16 @@
       <div class="hint" style="margin-top: 4px; font-size: 0.78rem; color: var(--muted);">
         Uses Gemini 1.5 Flash (free: 15 req/min). Or leave blank to use local GPT-2 (no key needed).
       </div>
+
+      <!-- HF API Key (optional, increases rate limits) -->
+      <div id="hf-api-key-row" style="margin-top: 12px; gap: 8px; align-items: center; display: flex;">
+        <input type="password" id="hf-api-key" placeholder="HF API key (optional, increases rate limits)" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; background: var(--card-alt); border: 1px solid var(--border); color: var(--text); border-radius: 0; image-rendering: pixelated;" autocomplete="off">
+        <button onclick="saveHfKey()" style="padding: 6px 14px; font-size: 0.8rem;">Save</button>
+      </div>
+      <div class="hint" style="margin-top: 4px; font-size: 0.78rem; color: var(--muted);">
+        5 AI agents: Gemini API, GPT-2, DistilGPT-2, HF Inference API, plus heuristics.
+        DistilGPT-2 is small & fast. HF API works anonymously (rate-limited) — a token helps.
+      </div>
     </div>
 
     <!-- Saved Sets Database -->
@@ -3504,14 +3514,17 @@ function showTestQuestion() {
   // Start timer if enabled
   startTimer();
 
-  // If AI model is ready and heuristics didn't find enough distractors,
-  // use AI to fill in the gap (non-blocking via .then())
+  // If AI is ready and heuristics didn't find enough distractors,
+  // use AI to fill in the gap (non-blocking via .then()).
+  // PRIMARY: generateAiWrongOptionsAll (all agents in parallel).
+  // SECONDARY fallback: generateAiWrongOptionsBoth (Gemini + GPT-2).
   const missing = numWrong - wrongOptions.length;
   if (aiForTestChoices() && missing > 0) {
     if (aiIndicator) aiIndicator.style.display = 'flex';
     const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
     const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
-    generateAiWrongOptionsBoth(aiQuestion, aiCorrect, card.subject, missing)
+    // PRIMARY: Try all AI agents in parallel (DistilGPT-2, HF API, Gemini, GPT-2)
+    generateAiWrongOptionsAll(aiQuestion, aiCorrect, card.subject, missing)
       .then(function(aiOpts) {
         if (aiIndicator) aiIndicator.style.display = 'none';
         if (aiOpts.length > 0) {
@@ -3519,6 +3532,17 @@ function showTestQuestion() {
           const newOptions = [correctAnswer, ...wrongOptions, ...aiOpts];
           if (testSettings.shuffleAnswers) newOptions.sort(() => Math.random() - 0.5);
           renderOptions(correctAnswer, newOptions);
+        } else {
+          // SECONDARY: Fallback to Gemini + GPT-2 only if primary agents produced nothing
+          return generateAiWrongOptionsBoth(aiQuestion, aiCorrect, card.subject, missing)
+            .then(function(fallbackOpts) {
+              if (fallbackOpts.length > 0) {
+                currentTestQuestion.wrongOptions = [...wrongOptions, ...fallbackOpts];
+                const fallbackOptions = [correctAnswer, ...wrongOptions, ...fallbackOpts];
+                if (testSettings.shuffleAnswers) fallbackOptions.sort(() => Math.random() - 0.5);
+                renderOptions(correctAnswer, fallbackOptions);
+              }
+            });
         }
       })
       .catch(function() {
@@ -4304,6 +4328,19 @@ let aiModel = null;
 let aiModelLoading = false;
 let aiModelReady = false;
 const AI_MODEL_NAME = 'Xenova/gpt2';
+
+// --- New primary AI agents ---
+// DistilGPT-2: smaller, faster local model (~55 MB quantized) — loads quickly
+let aiModelDistil = null;
+let aiModelDistilLoading = false;
+let aiModelDistilReady = false;
+const AI_MODEL_DISTIL_NAME = 'Xenova/distilgpt2';
+
+// Hugging Face Inference API — hosted inference via free public endpoint
+// Uses anonymous access (rate-limited) or user-provided HF token
+let hfApiKey = null; // Set via localStorage 'hfApiKey' or input field
+const DEFAULT_HF_MODEL = 'Xenova/gpt2';
+
 // Default Gemini API key — allows AI features without user setup
 // Note: shared keys have rate limits (15 req/min for Gemini 1.5 Flash free tier)
 const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6KsfWV4Ed8NIa8' + 'AFkkuOPD6ZoiEaqailDVy' + '1cleu2DVGA';
@@ -4311,8 +4348,23 @@ const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6KsfWV4Ed8NIa8' + 'AFkkuOPD6ZoiEaqailDVy' + 
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
 // (falls back to same-subject heuristic options) and upgrades when the model finishes loading
-function aiForTestChoices() { return aiModelReady || !!getGeminiApiKey(); }
+function aiForTestChoices() {
+  return aiModelReady || aiModelDistilReady || !!getGeminiApiKey() || !!getHfApiKey();
+}
 function isUsingBothAiBackends() { return aiModelReady && !!getGeminiApiKey(); }
+function isUsingAllAiBackends() {
+  var count = 0;
+  if (aiModelReady) count++;
+  if (aiModelDistilReady) count++;
+  if (getGeminiApiKey()) count++;
+  if (getHfApiKey()) count++;
+  return count >= 2;
+}
+function getHfApiKey() {
+  var stored = localStorage.getItem('hfApiKey');
+  if (stored) return stored;
+  return null; // Anonymous access (no key = rate-limited but works)
+}
 
 function updateAiStatus(msg, color) {
   const el = document.getElementById('ai-status');
@@ -4349,6 +4401,17 @@ function saveGeminiKey() {
   }
 }
 
+function saveHfKey() {
+  var key = document.getElementById('hf-api-key').value.trim();
+  if (key) {
+    localStorage.setItem('hfApiKey', key);
+  } else {
+    localStorage.removeItem('hfApiKey');
+  }
+  hfApiKey = key || null;
+  updateAiStatus(getMultiAgentStatus(), 'var(--accent3)');
+}
+
 function getGeminiApiKey() {
   // Check user-provided key in localStorage first, then input field, then default
   var stored = localStorage.getItem('geminiApiKey');
@@ -4364,9 +4427,13 @@ function initAiMode() {
   var key = getGeminiApiKey();
   var keyRow = document.getElementById('ai-gemini-key-row');
   // Always start loading GPT-2 in background — even when Gemini is available,
-  // so both backends can run in parallel for test choices.
-  if (!aiModelLoaded && !aiModelLoading) {
+  // so multiple backends can run in parallel for test choices.
+  if (!aiModel && !aiModelLoading) {
     ensureAiModel();
+  }
+  // Also start loading DistilGPT-2 (smaller, faster) for additional diversity
+  if (!aiModelDistil && !aiModelDistilLoading) {
+    ensureAiModelDistil();
   }
   if (key) {
     // Hide the key row — using pre-configured or user-provided key
@@ -4375,7 +4442,7 @@ function initAiMode() {
     if (keyInput && !keyInput.value && key === DEFAULT_GEMINI_KEY) {
       // Using default key — no need to show input
     }
-    var status = aiModelReady ? '✅ AI ready (Gemini + GPT-2, both active)' : '✅ AI ready (Gemini active, GPT-2 loading...)';
+    var status = aiModelReady && aiModelDistilReady ? getMultiAgentStatus() : (getGeminiApiKey() ? '✅ AI ready (Gemini active, GPT-2/DistilGPT-2 loading...)' : '🤗 Loading AI models...');  if (!getGeminiApiKey()) status = aiModelReady ? '✅ AI ready (GPT-2 + DistilGPT-2)' : '🤖 Loading AI models...';
     updateAiStatus(status, 'var(--accent3)');
   } else {
     if (keyRow) keyRow.style.display = 'flex';
@@ -4407,7 +4474,7 @@ async function ensureAiModel() {
         quantized: true
       });
       aiModelReady = true;
-      updateAiStatus(isUsingBothAiBackends() ? '✅ AI agents ready (Gemini + GPT-2)' : '✅ AI agent ready (GPT-2, local)', 'var(--accent3)');
+      updateAiStatus(getMultiAgentStatus(), 'var(--accent3)');
     } catch (err) {
       aiModel = null;
       aiModelReady = false;
@@ -4418,33 +4485,84 @@ async function ensureAiModel() {
   return null; // Return null immediately — model is loading in background
 }
 
+// Ensure DistilGPT-2 model is loaded (smaller, faster than GPT-2)
+async function ensureAiModelDistil() {
+  if (aiModelDistil) return aiModelDistil;
+  if (aiModelDistilLoading) return null;
+  aiModelDistilLoading = true;
+  updateAiStatus('🚀 Loading DistilGPT-2 (fast AI, ~55 MB)...', 'var(--accent3)');
+  (async function() {
+    try {
+      if (typeof window.transformers === 'undefined') {
+        const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.0/dist/transformers.min.js');
+        window.transformers = mod;
+      }
+      const { pipeline } = window.transformers;
+      aiModelDistil = await pipeline('text-generation', AI_MODEL_DISTIL_NAME, { quantized: true });
+      aiModelDistilReady = true;
+      updateAiStatus(getMultiAgentStatus(), 'var(--accent3)');
+    } catch (err) {
+      aiModelDistil = null;
+      aiModelDistilReady = false;
+    }
+    aiModelDistilLoading = false;
+  })();
+  return null;
+}
+
+// Build status string based on available backends
+function getMultiAgentStatus() {
+  var agents = [];
+  if (getGeminiApiKey()) agents.push('Gemini');
+  if (aiModelReady) agents.push('GPT-2');
+  if (aiModelDistilReady) agents.push('DistilGPT-2');
+  if (getHfApiKey()) agents.push('HF API');
+  if (agents.length === 0) return '🤖 Loading AI models...';
+  return '✅ AI agents ready (' + agents.join(' + ') + ')';
+}
+
 async function callAiModel(prompt, systemPrompt, forceBackend) {
-  // forceBackend: 'gemini' or 'local' — when undefined, auto-select with Gemini preference
+  // forceBackend: 'gemini', 'local', 'local-distil', 'hf-api', or undefined (auto)
+  // Primary backends: local-distil, hf-api (new agents)
+  // Secondary backends: gemini, local (existing agents)
   if (forceBackend === 'gemini' || (!forceBackend && getGeminiApiKey())) {
     return callGeminiApi(prompt, systemPrompt);
   }
-  // Local GPT-2 path
-  if (forceBackend === 'local' || (!forceBackend && !getGeminiApiKey())) {
-    if (!aiModelReady || !aiModel) throw new Error('AI model not available');
-    const model = await ensureAiModel();
-    if (!model) throw new Error('AI model not available');
-    var fullPrompt = systemPrompt + "\\n\\nInput: " + prompt + "\\n\\nOutput:\\n";
-    var result = await model(fullPrompt, {
-      max_new_tokens: 80,
-      temperature: 0.3,
-      do_sample: true,
-      top_p: 0.9,
-      early_stopping: true,
-      callback: async function() { await new Promise(r => setTimeout(r, 0)); }
-    });
-    var generated = result[0].generated_text;
-    var outputStart = generated.lastIndexOf('Output:\\n');
-    if (outputStart >= 0) {
-      return generated.substring(outputStart + 8);
-    }
-    return generated;
+  if (forceBackend === 'local-distil' || (!forceBackend && aiModelDistilReady && aiModelDistil)) {
+    return callLocalModel(prompt, systemPrompt, aiModelDistil, ensureAiModelDistil);
+  }
+  if (forceBackend === 'hf-api' || (!forceBackend && getHfApiKey())) {
+    return callHfApi(prompt, systemPrompt);
+  }
+  // Local GPT-2 path (secondary)
+  if (forceBackend === 'local' || (!forceBackend && aiModelReady && aiModel)) {
+    return callLocalModel(prompt, systemPrompt, aiModel, ensureAiModel);
   }
   throw new Error('AI model not available');
+}
+
+// Shared local model inference helper (used by both GPT-2 and DistilGPT-2)
+async function callLocalModel(prompt, systemPrompt, model, ensureModel) {
+  if (!model) {
+    const m = await ensureModel();
+    if (!m) throw new Error('AI model not available');
+    return callLocalModel(prompt, systemPrompt, m, ensureModel);
+  }
+  var fullPrompt = systemPrompt + "\n\nInput: " + prompt + "\n\nOutput:\n";
+  var result = await model(fullPrompt, {
+    max_new_tokens: 80,
+    temperature: 0.3,
+    do_sample: true,
+    top_p: 0.9,
+    early_stopping: true,
+    callback: async function() { await new Promise(r => setTimeout(r, 0)); }
+  });
+  var generated = result[0].generated_text;
+  var outputStart = generated.lastIndexOf('Output:\n');
+  if (outputStart >= 0) {
+    return generated.substring(outputStart + 8);
+  }
+  return generated;
 }
 
 async function callGeminiApi(prompt, systemPrompt) {
@@ -4475,6 +4593,38 @@ async function callGeminiApi(prompt, systemPrompt) {
     throw new Error('No response from Gemini');
   }
   return data.candidates[0].content.parts[0].text;
+}
+
+// Hugging Face Inference API — uses free public endpoint (anonymous, rate-limited)
+// or user-provided HF token for higher limits
+async function callHfApi(prompt, systemPrompt) {
+  var hfToken = getHfApiKey();
+  var headers = { 'Content-Type': 'application/json' };
+  if (hfToken) headers['Authorization'] = 'Bearer ' + hfToken;
+  var response = await fetch(
+    'https://api-inference.huggingface.co/models/' + DEFAULT_HF_MODEL,
+    {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 80,
+          temperature: 0.3,
+          top_p: 0.9,
+          do_sample: true,
+          return_full_text: false
+        }
+      })
+    }
+  );
+  if (!response.ok) {
+    var errText = await response.text();
+    throw new Error('HF API error: ' + response.status + ' ' + errText.substring(0, 200));
+  }
+  var data = await response.json();
+  var text = Array.isArray(data) ? data[0].generated_text : data.generated_text || '';
+  return text;
 }
 
 async function generateFlashcardsFromPdf(text, sourceName) {
@@ -4556,27 +4706,81 @@ async function generateAiWrongOptions(question, correctAnswer, subject, numOptio
 }
 
 
-// Run BOTH AI backends in parallel (Gemini API + local GPT-2) and merge results.
-// Whichever backends are available contribute their best distractors simultaneously.
+// PRIMARY: Run ALL AI backends in parallel (DistilGPT-2, HF API, Gemini, GPT-2).
+// New agents (DistilGPT-2, HF API) are tried first/prioritized; existing (Gemini, GPT-2) as secondary.
+async function generateAiWrongOptionsAll(question, correctAnswer, subject, numOptions) {
+  var primaryPromises = [];
+  var secondaryPromises = [];
+
+  // Primary backends: DistilGPT-2 (local, fast) and HF API
+  if (aiModelDistilReady && aiModelDistil) {
+    primaryPromises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'local-distil'));
+  }
+  if (getHfApiKey() || true) { // HF API works anonymously (rate-limited)
+    primaryPromises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'hf-api'));
+  }
+
+  // Secondary backends: Gemini API and local GPT-2
+  if (getGeminiApiKey()) {
+    secondaryPromises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'gemini'));
+  }
+  if (aiModelReady && aiModel) {
+    secondaryPromises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'local'));
+  }
+
+  // Run primary backends first (they are the primary method)
+  var primaryResults = [];
+  if (primaryPromises.length > 0) {
+    primaryResults = await Promise.allSetAll(primaryPromises.map(function(p) {
+      return p.catch(function() { return []; });
+    }));
+  }
+
+  // Merge primary results first (higher priority)
+  var seen = new Set();
+  var merged = [];
+  var addResults = function(resultsArray) {
+    resultsArray.forEach(function(opts) {
+      opts.forEach(function(opt) {
+        var key = opt.toLowerCase();
+        if (!seen.has(key) && key.length >= 3) {
+          seen.add(key);
+          merged.push(opt);
+        }
+      });
+    });
+  };
+  addResults(primaryResults);
+
+  // If we still need more, run secondary backends
+  if (merged.length < numOptions && secondaryPromises.length > 0) {
+    var secondaryResults = await Promise.allSetAll(secondaryPromises.map(function(p) {
+      return p.catch(function() { return []; });
+    }));
+    addResults(secondaryResults);
+  }
+
+  return merged.slice(0, numOptions);
+}
+
+// SECONDARY: Run Gemini + GPT-2 in parallel (fallback when primary agents unavailable)
 async function generateAiWrongOptionsBoth(question, correctAnswer, subject, numOptions) {
   var promises = [];
 
-  // Gemini API call (always runs if key is available)
+  // Gemini API call
   if (getGeminiApiKey()) {
     promises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'gemini'));
   }
 
-  // Local GPT-2 call (always runs if model is ready)
+  // Local GPT-2 call
   if (aiModelReady && aiModel) {
     promises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'local'));
   }
 
-  // Run all available backends in parallel, catching errors
   var results = await Promise.allSetAll(promises.map(function(p) {
     return p.catch(function() { return []; });
   }));
 
-  // Flatten, deduplicate (case-insensitive), and cap at numOptions
   var seen = new Set();
   var merged = [];
   results.forEach(function(opts) {
@@ -5126,7 +5330,7 @@ setTimeout(function() {
   if (getGeminiApiKey()) {
     var keyRow = document.getElementById('ai-gemini-key-row');
     if (keyRow) keyRow.style.display = 'none';
-    updateAiStatus('✅ AI ready (Gemini + GPT-2)', 'var(--accent3)');
+    updateAiStatus(getMultiAgentStatus(), 'var(--accent3)');
   } else {
     var keyRow = document.getElementById('ai-gemini-key-row');
     if (keyRow) keyRow.style.display = 'flex';
