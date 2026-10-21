@@ -1349,7 +1349,7 @@
     <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
-      <p class="hint">AI is always on for all users. Uses a free open-source model (GPT-2 medium) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
+      <p class="hint">AI is always on for all users. Uses a free open-source model (GPT-2, 124M parameters) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
       <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
     </div>
 
@@ -4167,7 +4167,7 @@ async function handleFileSelect(event) {
 let aiModel = null;
 let aiModelLoading = false;
 let aiModelReady = false;
-const AI_MODEL_NAME = 'Xenova/gpt2-medium';
+const AI_MODEL_NAME = 'Xenova/gpt2';
 
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
@@ -4213,13 +4213,13 @@ async function ensureAiModel() {
         const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.2.0/dist/transformers.min.js');
         window.transformers = mod;
       }
-      updateAiStatus('🤖 Loading GPT-2 medium model...', 'var(--accent3)');
+      updateAiStatus('🤖 Loading GPT-2 model...', 'var(--accent3)');
       const { pipeline } = window.transformers;
       aiModel = await pipeline('text-generation', AI_MODEL_NAME, {
         quantized: true
       });
       aiModelReady = true;
-      updateAiStatus('✅ AI agent ready (GPT-2 medium, running locally)', 'var(--accent3)');
+      updateAiStatus('✅ AI agent ready (GPT-2, running locally)', 'var(--accent3)');
     } catch (err) {
       aiModel = null;
       aiModelReady = false;
@@ -4235,7 +4235,7 @@ async function callAiModel(prompt, systemPrompt) {
   if (!aiModelReady || !aiModel) throw new Error('AI model not available');
   const model = await ensureAiModel();
   if (!model) throw new Error('AI model not available');
-  // GPT-2 medium uses text-generation: combine system + user prompt with clear delimiters
+  // GPT-2 uses text-generation: combine system + user prompt with clear delimiters
   // The generated_text will include the full prompt, so we strip it at the delimiter
   var fullPrompt = systemPrompt + '\n\nInput: ' + prompt + '\n\nOutput:\n';
   var result = await model(fullPrompt, {
