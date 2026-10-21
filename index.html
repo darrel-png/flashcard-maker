@@ -4234,19 +4234,23 @@ function getGeminiApiKey() {
 function initAiMode() {
   var key = getGeminiApiKey();
   var keyRow = document.getElementById('ai-gemini-key-row');
+  // Always start loading GPT-2 in background — even when Gemini is available,
+  // so both backends can run in parallel for test choices.
+  if (!aiModelLoaded && !aiModelLoading) {
+    ensureAiModel();
+  }
   if (key) {
     // Hide the key row — using pre-configured or user-provided key
     if (keyRow) keyRow.style.display = 'none';
-    // Show key in input (masked) for transparency, but don't require action
     var keyInput = document.getElementById('gemini-api-key');
     if (keyInput && !keyInput.value && key === DEFAULT_GEMINI_KEY) {
       // Using default key — no need to show input
     }
-    updateAiStatus('✅ AI ready (Gemini 1.5 Flash + GPT-2)', 'var(--accent3)');
+    var status = aiModelReady ? '✅ AI ready (Gemini + GPT-2, both active)' : '✅ AI ready (Gemini active, GPT-2 loading...)';
+    updateAiStatus(status, 'var(--accent3)');
   } else {
     if (keyRow) keyRow.style.display = 'flex';
     updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
-    ensureAiModel();
   }
 }
 
@@ -4984,17 +4988,20 @@ handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
 loadDarkMode();
-// On page load: use pre-configured Gemini key (no local GPT-2 preload needed)
+// On page load: always start loading GPT-2 in background (for dual-backend mode)
 setTimeout(function() {
+  // Start GPT-2 load regardless of Gemini — both backends run in parallel
+  if (!aiModelLoading) {
+    ensureAiModel();
+  }
   if (getGeminiApiKey()) {
     var keyRow = document.getElementById('ai-gemini-key-row');
     if (keyRow) keyRow.style.display = 'none';
-    updateAiStatus('✅ AI ready (Gemini 1.5 Flash)', 'var(--accent3)');
+    updateAiStatus('✅ AI ready (Gemini + GPT-2)', 'var(--accent3)');
   } else {
     var keyRow = document.getElementById('ai-gemini-key-row');
     if (keyRow) keyRow.style.display = 'flex';
     updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
-    ensureAiModel();
   }
 }, 1000);
 
