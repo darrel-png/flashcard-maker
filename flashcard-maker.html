@@ -4328,9 +4328,6 @@ async function callGeminiApi(prompt, systemPrompt) {
   return data.candidates[0].content.parts[0].text;
 }
 
-  return generated;
-}
-
 async function generateFlashcardsFromPdf(text, sourceName) {
   var statusEl = document.getElementById('file-status');
   statusEl.style.display = 'block';
