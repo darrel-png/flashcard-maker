@@ -411,6 +411,21 @@
     font-size: 1.4rem; line-height: 1.5; margin-bottom: 8px;
     color: var(--text);
   }
+  .ai-spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  body.dark-mode .ai-spinner {
+    border-color: var(--accent3);
+    border-top-color: transparent;
+  }
   .options {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1263,6 +1278,10 @@
           <div class="label">Question</div>
           <div class="subject-tag" id="question-subject" style="display:none;"></div>
           <div class="question-text" id="question-text">Click Start Test to begin</div>
+          <div id="ai-loading-indicator" style="display:none; align-items:center; gap:8px; justify-content:center; margin-top:12px; font-size:0.85rem; color:var(--accent);">
+            <span class="ai-spinner"></span>
+            <span>✨ Generating AI distractors...</span>
+          </div>
           <div class="timer-bar" id="timer-bar" style="display:none;">
             <div class="timer-fill" id="timer-fill"></div>
             <span class="timer-text" id="timer-text"></span>
@@ -3330,6 +3349,9 @@ function showTestQuestion() {
     options.sort(() => Math.random() - 0.5);
   }
   renderOptions(correctAnswer, options);
+  // Ensure loading indicator is hidden when showing heuristic options
+  const aiIndicator = document.getElementById('ai-loading-indicator');
+  if (aiIndicator) aiIndicator.style.display = 'none';
 
   // Hide result banner
   document.getElementById('result-banner').style.display = 'none';
@@ -3344,10 +3366,12 @@ function showTestQuestion() {
   // If AI model is ready, generate distractor options in the background (non-blocking)
   // The heuristic options above are shown immediately; AI options replace them when ready
   if (aiForTestChoices()) {
+    if (aiIndicator) aiIndicator.style.display = 'flex';
     const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
     const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
     generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, numWrong)
       .then(function(aiOpts) {
+        if (aiIndicator) aiIndicator.style.display = 'none';
         if (aiOpts.length >= numWrong) {
           currentTestQuestion.wrongOptions = aiOpts;
           const newOptions = [correctAnswer, ...aiOpts];
@@ -3355,7 +3379,9 @@ function showTestQuestion() {
           renderOptions(correctAnswer, newOptions);
         }
       })
-      .catch(function() {});
+      .catch(function() {
+        if (aiIndicator) aiIndicator.style.display = 'none';
+      });
   }
 }
 
