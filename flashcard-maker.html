@@ -3363,18 +3363,19 @@ function showTestQuestion() {
   // Start timer if enabled
   startTimer();
 
-  // If AI model is ready, generate distractor options in the background (non-blocking)
-  // The heuristic options above are shown immediately; AI options replace them when ready
-  if (aiForTestChoices()) {
+  // If AI model is ready and heuristics didn't find enough distractors,
+  // use AI to fill in the gap (non-blocking via .then())
+  const missing = numWrong - wrongOptions.length;
+  if (aiForTestChoices() && missing > 0) {
     if (aiIndicator) aiIndicator.style.display = 'flex';
     const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
     const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
-    generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, numWrong)
+    generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, missing)
       .then(function(aiOpts) {
         if (aiIndicator) aiIndicator.style.display = 'none';
-        if (aiOpts.length >= numWrong) {
-          currentTestQuestion.wrongOptions = aiOpts;
-          const newOptions = [correctAnswer, ...aiOpts];
+        if (aiOpts.length > 0) {
+          currentTestQuestion.wrongOptions = [...wrongOptions, ...aiOpts];
+          const newOptions = [correctAnswer, ...wrongOptions, ...aiOpts];
           if (testSettings.shuffleAnswers) newOptions.sort(() => Math.random() - 0.5);
           renderOptions(correctAnswer, newOptions);
         }
@@ -4302,16 +4303,27 @@ async function generateAiWrongOptions(question, correctAnswer, subject, numOptio
     'Number of distractors needed: ' + numOptions + '\n\n' +
     'Generate ' + numOptions + ' plausible but incorrect distractors for this question. Each should be related to the topic but definitively wrong.';
 
+  // Keywords that indicate prompt-leakage / non-distractor text from GPT-2
+  var PROMPT_LEAKAGE = /^(generate|number of|distractors|correct answer|question|subject|answer|here|output|below|above|the following)/i;
+
   try {
     var response = await callAiModel(prompt, systemPrompt);
-    // callAiModel already strips the prompt; response is just the generated distractors
     var lines = response.trim().split('\n')
-      .map(function(l) { return l.trim(); })
-      .filter(function(l) { return l.length > 0 && l.toLowerCase() !== correctAnswer.toLowerCase(); });
-    // Remove leading numbers/bullets
-    lines = lines.map(function(l) {
-      return l.replace(/^[\d\-•\)]\s*/, '').trim();
-    }).filter(function(l) { return l.length > 0; });
+      .map(function(l) { return l.replace(/^[\d\-•\)]\s*/, '').trim(); })
+      .filter(function(l) {
+        if (l.length < 3) return false;                                     // too short
+        if (l.toLowerCase() === correctAnswer.toLowerCase()) return false;   // exact match to correct answer
+        if (PROMPT_LEAKAGE.test(l)) return false;                           // prompt leakage
+        return true;
+      });
+    // Deduplicate (case-insensitive)
+    var seen = new Set();
+    lines = lines.filter(function(l) {
+      var key = l.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     return lines.slice(0, numOptions);
   } catch (err) {
     return [];
