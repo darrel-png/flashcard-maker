@@ -3382,7 +3382,7 @@ function showTestQuestion() {
     if (aiIndicator) aiIndicator.style.display = 'flex';
     const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
     const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
-    generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, missing)
+    generateAiWrongOptionsBoth(aiQuestion, aiCorrect, card.subject, missing)
       .then(function(aiOpts) {
         if (aiIndicator) aiIndicator.style.display = 'none';
         if (aiOpts.length > 0) {
@@ -4183,6 +4183,7 @@ function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
 // (falls back to same-subject heuristic options) and upgrades when the model finishes loading
 function aiForTestChoices() { return aiModelReady || !!getGeminiApiKey(); }
+function isUsingBothAiBackends() { return aiModelReady && !!getGeminiApiKey(); }
 
 function updateAiStatus(msg, color) {
   const el = document.getElementById('ai-status');
@@ -4241,7 +4242,7 @@ function initAiMode() {
     if (keyInput && !keyInput.value && key === DEFAULT_GEMINI_KEY) {
       // Using default key — no need to show input
     }
-    updateAiStatus('✅ AI ready (Gemini 1.5 Flash)', 'var(--accent3)');
+    updateAiStatus('✅ AI ready (Gemini 1.5 Flash + GPT-2)', 'var(--accent3)');
   } else {
     if (keyRow) keyRow.style.display = 'flex';
     updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
@@ -4273,7 +4274,7 @@ async function ensureAiModel() {
         quantized: true
       });
       aiModelReady = true;
-      updateAiStatus('✅ AI agent ready (GPT-2, running locally)', 'var(--accent3)');
+      updateAiStatus(isUsingBothAiBackends() ? '✅ AI agents ready (Gemini + GPT-2)' : '✅ AI agent ready (GPT-2, local)', 'var(--accent3)');
     } catch (err) {
       aiModel = null;
       aiModelReady = false;
@@ -4284,30 +4285,33 @@ async function ensureAiModel() {
   return null; // Return null immediately — model is loading in background
 }
 
-async function callAiModel(prompt, systemPrompt) {
-  var apiKey = getGeminiApiKey();
-  if (apiKey) {
+async function callAiModel(prompt, systemPrompt, forceBackend) {
+  // forceBackend: 'gemini' or 'local' — when undefined, auto-select with Gemini preference
+  if (forceBackend === 'gemini' || (!forceBackend && getGeminiApiKey())) {
     return callGeminiApi(prompt, systemPrompt);
   }
-  // Fall back to local GPT-2
-  if (!aiModelReady || !aiModel) throw new Error('AI model not available');
-  const model = await ensureAiModel();
-  if (!model) throw new Error('AI model not available');
-  var fullPrompt = systemPrompt + '\\n\\nInput: ' + prompt + '\\n\\nOutput:\\n';
-  var result = await model(fullPrompt, {
-    max_new_tokens: 80,
-    temperature: 0.3,
-    do_sample: true,
-    top_p: 0.9,
-    early_stopping: true,
-    callback: async function() { await new Promise(r => setTimeout(r, 0)); }
-  });
-  var generated = result[0].generated_text;
-  var outputStart = generated.lastIndexOf('Output:\\n');
-  if (outputStart >= 0) {
-    return generated.substring(outputStart + 8);
+  // Local GPT-2 path
+  if (forceBackend === 'local' || (!forceBackend && !getGeminiApiKey())) {
+    if (!aiModelReady || !aiModel) throw new Error('AI model not available');
+    const model = await ensureAiModel();
+    if (!model) throw new Error('AI model not available');
+    var fullPrompt = systemPrompt + "\\n\\nInput: " + prompt + "\\n\\nOutput:\\n";
+    var result = await model(fullPrompt, {
+      max_new_tokens: 80,
+      temperature: 0.3,
+      do_sample: true,
+      top_p: 0.9,
+      early_stopping: true,
+      callback: async function() { await new Promise(r => setTimeout(r, 0)); }
+    });
+    var generated = result[0].generated_text;
+    var outputStart = generated.lastIndexOf('Output:\\n');
+    if (outputStart >= 0) {
+      return generated.substring(outputStart + 8);
+    }
+    return generated;
   }
-  return generated;
+  throw new Error('AI model not available');
 }
 
 async function callGeminiApi(prompt, systemPrompt) {
@@ -4383,7 +4387,7 @@ async function generateFlashcardsFromPdf(text, sourceName) {
   }
 }
 
-async function generateAiWrongOptions(question, correctAnswer, subject, numOptions) {
+async function generateAiWrongOptions(question, correctAnswer, subject, numOptions, backend) {
   var systemPrompt = 'You are creating wrong answer choices (distractors) for a multiple-choice exam. The correct answer is provided separately — do NOT include it. Create ' + numOptions + ' choices that are closely relevant to the right answer. Make the wrong choices subtle enough to cause confusion but have the right answer stand out a bit. Format: one choice per line, plain text only, no numbers or bullets.';
 
   var prompt = 'Question: \"' + question + '\"\n' +
@@ -4395,7 +4399,7 @@ async function generateAiWrongOptions(question, correctAnswer, subject, numOptio
   var PROMPT_LEAKAGE = /^(generate|create|number of|distractors|choices|options|correct answer|question|subject|answer|here|output|below|above|the following|each should|make)/i;
 
   try {
-    var response = await callAiModel(prompt, systemPrompt);
+    var response = await callAiModel(prompt, systemPrompt, backend);
     var lines = response.trim().split('\n')
       .map(function(l) { return l.replace(/^[\d\-•\)]\s*/, '').trim(); })
       .filter(function(l) {
@@ -4416,6 +4420,43 @@ async function generateAiWrongOptions(question, correctAnswer, subject, numOptio
   } catch (err) {
     return [];
   }
+}
+
+
+// Run BOTH AI backends in parallel (Gemini API + local GPT-2) and merge results.
+// Whichever backends are available contribute their best distractors simultaneously.
+async function generateAiWrongOptionsBoth(question, correctAnswer, subject, numOptions) {
+  var promises = [];
+
+  // Gemini API call (always runs if key is available)
+  if (getGeminiApiKey()) {
+    promises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'gemini'));
+  }
+
+  // Local GPT-2 call (always runs if model is ready)
+  if (aiModelReady && aiModel) {
+    promises.push(generateAiWrongOptions(question, correctAnswer, subject, numOptions, 'local'));
+  }
+
+  // Run all available backends in parallel, catching errors
+  var results = await Promise.allSetAll(promises.map(function(p) {
+    return p.catch(function() { return []; });
+  }));
+
+  // Flatten, deduplicate (case-insensitive), and cap at numOptions
+  var seen = new Set();
+  var merged = [];
+  results.forEach(function(opts) {
+    opts.forEach(function(opt) {
+      var key = opt.toLowerCase();
+      if (!seen.has(key) && key.length >= 3) {
+        seen.add(key);
+        merged.push(opt);
+      }
+    });
+  });
+
+  return merged.slice(0, numOptions);
 }
 
 function parseTextContent(text, sourceName, defaultSubject) {
