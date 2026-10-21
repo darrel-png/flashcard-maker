@@ -3003,8 +3003,11 @@ function generateReferenceDistractors(correct, cardEntry) {
             if (qf && vf && qf !== vf && vf !== 'other') score -= 80;
         }
 
-        // Only keep candidates with some similarity
-        if (score > 15) {
+        // Penalty: if distractor shares NO words AND NO question topics AND NO cross-similarity,
+        // it's obviously wrong (too easy to eliminate)
+        if (shared === 0 && qShared === 0 && crossShared === 0) score -= 100;
+        // Only keep candidates with meaningful similarity
+        if (score > 30) {
             candidates.push({val, score, shared, qShared, crossShared});
         }
     }
@@ -3205,7 +3208,7 @@ function collectWrongOptions(cardEntry, field, exclude) {
       if (semanticCategory(val) === semanticCategory(excludeTrimmed)) s += 50;
     }
     // Same subject bonus (topical relatedness)
-    if (entry.card && cardEntry.subject && entry.card.subject && entry.card.subject === cardEntry.subject) s += 15;
+    if (entry.card && cardEntry.subject && entry.card.subject && entry.card.subject === cardEntry.subject) s += 30;
     // Generated distractors are pre-filtered for content relevance to the correct answer
     if (entry.generated) s += 40;
     // Penalty: same type but mismatched semantic category (e.g. person name vs place name)
@@ -3220,9 +3223,11 @@ function collectWrongOptions(cardEntry, field, exclude) {
     }
     const lenDiff = Math.abs(val.length - excludeLen);
     s += Math.max(0, 60 - lenDiff * 4);            // length similarity — closer length = more similar
-    s += wordOverlap(val) * 25;                    // shared words are strong relevance signal
+    s += wordOverlap(val) * 50;                    // shared words are strong relevance signal
     s += charOverlap(excludeTrimmed, val) * 5;     // shared characters (format similarity)
-    s += questionSim(entry) * 8;                   // shared question topic words + question-word match (secondary)
+    s += questionSim(entry) * 25;                   // shared question topic words + question-word match
+    // Penalty: if distractor shares NO words AND NO question topics, it's obviously wrong (too easy)
+    if (wordOverlap(val) === 0 && questionSim(entry) === 0) s -= 100;
     return s;
   }
 
