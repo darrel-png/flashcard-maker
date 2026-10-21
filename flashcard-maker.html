@@ -4300,16 +4300,15 @@ async function generateFlashcardsFromPdf(text, sourceName) {
 }
 
 async function generateAiWrongOptions(question, correctAnswer, subject, numOptions) {
-  var systemPrompt = 'You are an expert distractor generator for multiple-choice tests. Generate distractors that are HARD to eliminate. Rules: (1) Same word class and similar length as the correct answer. (2) Share at least one key word or concept with the correct answer. (3) Be definitively wrong — a guesser would be fooled, someone who knows the material would not. (4) Never repeat or copy from the correct answer. (5) One distractor per line, plain text only, no numbers or bullets.';
+  var systemPrompt = 'You are creating wrong answer choices (distractors) for a multiple-choice exam. The correct answer is provided separately — do NOT include it. Create ' + numOptions + ' choices that are closely relevant to the right answer. Make the wrong choices subtle enough to cause confusion but have the right answer stand out a bit. Format: one choice per line, plain text only, no numbers or bullets.';
 
-  var prompt = 'Question: "' + question + '"\n' +
-    'Correct Answer: "' + correctAnswer + '"\n' +
-    'Subject: "' + (subject || 'General') + '"\n' +
-    'Distractors needed: ' + numOptions + '\n\n' +
-    'Example: for question "What is the capital of France?" with answer "Paris", good distractors are "Lyon", "Marseille", "Toulouse" (same country, plausible) — not "London", "Berlin" (different country, too easy).\n\n' +
-    'Generate ' + numOptions + ' plausible but definitively incorrect distractors, each same format and similar length to the correct answer.';
+  var prompt = 'Question: \"' + question + '\"\n' +
+    'Correct Answer: \"' + correctAnswer + '\"\n' +
+    'Subject: "' + (subject || 'General') + '"\n\n' +
+    'Create ' + numOptions + ' multiple choice options that are closely relevant to the right answer. Make the wrong choices subtle enough to cause confusion but have the right answer stand out a bit. One option per line, plain text only, no numbers or bullets.\n\n' +
+    'Output:';
   // Keywords that indicate prompt-leakage / non-distractor text from GPT-2
-  var PROMPT_LEAKAGE = /^(generate|number of|distractors|correct answer|question|subject|answer|here|output|below|above|the following)/i;
+  var PROMPT_LEAKAGE = /^(generate|create|number of|distractors|choices|options|correct answer|question|subject|answer|here|output|below|above|the following|each should|make)/i;
 
   try {
     var response = await callAiModel(prompt, systemPrompt);
