@@ -977,14 +977,20 @@
     <button class="tab-btn" onclick="showTab('import')">Import/Export</button>
   </div>
 
-  <!-- Cloud Auth Bar -->
-  <div id="cloud-auth-bar" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:0.85rem;">
-    <button class="btn-sm btn-secondary" id="login-btn" onclick="showLoginModal()" style="display:inline-block;">🔐 Log In</button>
-    <button class="btn-sm btn-secondary" id="logout-btn" onclick="logout()" style="display:none;">Logout</button>
-    <button class="btn-sm btn-primary" id="sync-cloud-btn" onclick="syncToCloud()" style="display:none;">☁️ Sync Now</button>
-    <button class="btn-sm btn-secondary" id="dark-mode-btn" onclick="toggleDarkMode()" style="display:inline-block; margin-left:auto;">🌙 Dark</button>
-    <span id="ai-header-status" class="hint" style="margin-left:8px; color:var(--accent3); font-size:0.8rem; display:none;">🤖 AI: Loading...</span>
-    <span id="cloud-sync-status" class="hint" style="margin-left:8px; color:var(--muted);">Not signed in</span>
+  <!-- Cloud Auth Bar -- Split into left (auth) and right (utility) for clean spacing -->
+  <div id="cloud-auth-bar" role="toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:0.85rem;">
+    <!-- Left: Auth + Sync actions -->
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="btn-sm btn-secondary" id="login-btn" onclick="showLoginModal()" style="display:inline-block;">🔐 Log In</button>
+      <button class="btn-sm btn-secondary" id="logout-btn" onclick="logout()" style="display:none;">Logout</button>
+      <button class="btn-sm btn-primary" id="sync-cloud-btn" onclick="syncToCloud()" style="display:none;">☁️ Sync Now</button>
+    </div>
+    <!-- Right: Utility (dark mode, AI status, sync status) -->
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="btn-sm btn-secondary" id="dark-mode-btn" onclick="toggleDarkMode()" style="display:inline-block;">🌙 Dark</button>
+      <span id="ai-header-status" class="hint" style="color:var(--accent3); font-size:0.8rem; display:none;">🤖 AI: Loading...</span>
+      <span id="cloud-sync-status" class="hint" style="color:var(--muted);">Not signed in</span>
+    </div>
   </div>
 
   <!-- Create Tab -->
