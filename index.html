@@ -318,6 +318,30 @@
     gap: 4px;
     align-items: center;
   }
+  /* Delete subject dropdown in action bar */
+  .delete-subject-select {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    background: var(--card-alt);
+    border: 1px solid var(--border);
+    color: var(--danger);
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .delete-subject-select:hover,
+  .delete-subject-select:focus {
+    background: var(--danger);
+    color: var(--bg);
+  }
+  /* Delete button in subject group header */
+  .subject-delete-btn {
+    color: var(--danger);
+    opacity: 0.7;
+  }
+  .subject-delete-btn:hover {
+    opacity: 1;
+    color: var(--danger);
+  }
   /* Table delete button — compact sizing */
   .table-delete-btn {
     padding: 4px 10px;
@@ -1039,6 +1063,9 @@
       <div class="btn-group">
         <button class="btn-sm btn-secondary" onclick="toggleCreateTable()" id="create-table-hide-btn">Hide Table</button>
         <button class="btn-sm btn-secondary" onclick="toggleCreateGroupBySubject()" id="create-group-btn" style="display:none;">Group by Subject</button>
+        <select class="btn-sm btn-danger delete-subject-select" id="delete-subject-select" onchange="deleteSubjectFromDropdown(this.value)" title="Delete all cards in a subject">
+          <option value="">🗑 Delete Subject</option>
+        </select>
       </div>
       <div id="hidden-subjects-bar" class="hidden-subjects-bar" style="display:none;">
         <span class="hint">Hidden subjects:</span>
@@ -1896,11 +1923,13 @@ function updateCardCount() {
     table.style.display = 'table';
     empty.style.display = 'none';
     if (groupBtn) groupBtn.style.display = 'inline-block';
+    toggleDeleteSubjectSelect();
     renderDataTable();
   } else {
     table.style.display = 'none';
     empty.style.display = 'block';
     if (groupBtn) groupBtn.style.display = 'none';
+    toggleDeleteSubjectSelect();
   }
 }
 
@@ -1908,6 +1937,9 @@ function renderDataTable() {
   const tbody = document.getElementById('data-table-body');
   const checkboxHeader = document.getElementById('checkbox-header');
   if (checkboxHeader) checkboxHeader.style.display = 'table-cell';
+
+  // Populate delete-subject dropdown
+  populateSubjectDeleteDropdown();
 
   // Update hidden subjects bar
   const hiddenBar = document.getElementById('hidden-subjects-bar');
@@ -1955,6 +1987,7 @@ function renderDataTable() {
       headerTr.innerHTML = `<td colspan="6" style="padding:6px 12px; font-weight:600; color:${subjectColor(subj)}; text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; display:flex; justify-content:space-between; align-items:center;">
         <span>${escapeHTML(subj)} <span class="hint" style="color:var(--muted); font-size:0.75rem;">(${groups[subj].length} cards)</span></span>
         <button class="subject-hide-btn" onclick="toggleSubjectHidden('${escapeHTMLAttr(subj)}')" title="Hide all ${escapeHTMLAttr(subj)} cards">×</button>
+        <button class="subject-hide-btn subject-delete-btn" onclick="deleteSubjectCards('${escapeHTMLAttr(subj)}')" title="Delete all ${escapeHTMLAttr(subj)} cards">🗑</button>
       </td>`;
       tbody.appendChild(headerTr);
       // Card rows within this group
@@ -2309,6 +2342,56 @@ function toggleCreateGroupBySubject() {
   renderDataTable();
 }
 
+// Show/hide delete-subject-select (same logic as group button — only when table view + cards exist)
+function toggleDeleteSubjectSelect() {
+  var select = document.getElementById('delete-subject-select');
+  if (select) {
+    var hasCards = flashcards.length > 0;
+    select.style.display = hasCards ? 'inline-block' : 'none';
+  }
+}
+
+// Delete all flashcards belonging to a specific subject
+function deleteSubjectCards(subject) {
+  var cardsInSubject = flashcards.filter(c => (c.subject || 'General') === subject).length;
+  if (cardsInSubject === 0) return;
+  if (!confirm('Delete all ' + cardsInSubject + ' flashcards in subject "' + subject + '"? This cannot be undone.')) return;
+  flashcards = flashcards.filter(c => (c.subject || 'General') !== subject);
+  hiddenSubjects.delete(subject);
+  saveData();
+  populateSubjectDeleteDropdown();
+  renderDataTable();
+}
+
+// Populate the delete-subject dropdown with unique subjects
+function populateSubjectDeleteDropdown() {
+  var select = document.getElementById('delete-subject-select');
+  if (!select) return;
+  var subjects = getUniqueSubjects();
+  // Clear existing options (except the placeholder)
+  select.innerHTML = '';
+  var placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '🗑 Delete Subject';
+  select.appendChild(placeholder);
+  subjects.forEach(function(subj) {
+    var opt = document.createElement('option');
+    opt.value = subj;
+    opt.textContent = subj;
+    select.appendChild(opt);
+  });
+}
+
+// Handler for dropdown change
+function deleteSubjectFromDropdown(subject) {
+  if (subject) {
+    deleteSubjectCards(subject);
+    // Reset dropdown
+    var select = document.getElementById('delete-subject-select');
+    if (select) select.value = '';
+  }
+}
+
 function toggleCreateTable() {
   const container = document.getElementById('data-table-container');
   const btn = document.getElementById('create-table-hide-btn');
@@ -2424,6 +2507,7 @@ function toggleStudyView() {
     table.style.display = 'none';
     btn.textContent = 'Table View';
     if (groupBtn) groupBtn.style.display = 'none';
+    toggleDeleteSubjectSelect();
     resetStudy();
   } else {
     // Switch to table view
@@ -2431,6 +2515,7 @@ function toggleStudyView() {
     table.style.display = 'block';
     btn.textContent = 'Card View';
     if (groupBtn) groupBtn.style.display = 'inline-block';
+    toggleDeleteSubjectSelect();
     renderStudyTable();
   }
 }
