@@ -3341,6 +3341,22 @@ function showTestQuestion() {
   // Start timer if enabled
   startTimer();
 
+  // If AI model is ready, generate distractor options in the background (non-blocking)
+  // The heuristic options above are shown immediately; AI options replace them when ready
+  if (aiForTestChoices()) {
+    const aiQuestion = testMode === 'term-to-def' ? card.term : card.definition;
+    const aiCorrect = testMode === 'term-to-def' ? card.definition : card.term;
+    generateAiWrongOptions(aiQuestion, aiCorrect, card.subject, numWrong)
+      .then(function(aiOpts) {
+        if (aiOpts.length >= numWrong) {
+          currentTestQuestion.wrongOptions = aiOpts;
+          const newOptions = [correctAnswer, ...aiOpts];
+          if (testSettings.shuffleAnswers) newOptions.sort(() => Math.random() - 0.5);
+          renderOptions(correctAnswer, newOptions);
+        }
+      })
+      .catch(function() {});
+  }
 }
 
 function renderOptions(correctAnswer, options) {
@@ -4191,11 +4207,13 @@ async function callAiModel(prompt, systemPrompt) {
   // The generated_text will include the full prompt, so we strip it at the delimiter
   var fullPrompt = systemPrompt + '\n\nInput: ' + prompt + '\n\nOutput:\n';
   var result = await model(fullPrompt, {
-    max_new_tokens: 150,
+    max_new_tokens: 80,
     temperature: 0.3,
     do_sample: true,
     top_p: 0.9,
-    early_stopping: true
+    early_stopping: true,
+    // Yield to the event loop between tokens — prevents main-thread blocking
+    callback: async function() { await new Promise(r => setTimeout(r, 0)); }
   });
   // Strip the input prompt, return only the generated continuation
   var generated = result[0].generated_text;
@@ -4799,8 +4817,8 @@ handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
 loadDarkMode();
-// AI model only loads on demand when user explicitly enables it (e.g. for PDF import AI features)
-// Do NOT preload during/after test start — causes WASM inference to block the main thread
+// Start loading AI model in background on page load (delayed to avoid blocking initial render)
+setTimeout(function() { ensureAiModel(); }, 2000);
 
 
 
