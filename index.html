@@ -1349,8 +1349,15 @@
     <!-- AI Agent (Free Browser Model — Always On) -->
     <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
       <h3 style="color: var(--accent); margin-bottom: 4px;">🤖 AI Agent (Free Browser Model)</h3>
-      <p class="hint">AI is always on for all users. Uses a free open-source model (GPT-2, 124M parameters) that runs directly in your browser — no API key, no sign-up, no cost. The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
+      <p class="hint">AI is always on for all users. Uses uses Google's free Gemini 1.5 Flash model (free tier: 15 req/min). Enter your API key below, or leave blank to use the local GPT-2 model (no key needed). The model downloads once (~122 MB) and caches locally. AI-generated flashcards are automatically labeled and synced to your Firebase account when signed in.</p>
       <div id="ai-status" class="hint" style="margin-top: 8px; color: var(--accent3);">Loading AI model...</div>
+      <div id="ai-gemini-key-row" style="margin-top: 12px; display: flex; gap: 8px; align-items: center;">
+        <input type="password" id="gemini-api-key" placeholder="Gemini API key (free tier)" style="flex: 1; padding: 6px 10px; font-size: 0.85rem; background: var(--card-alt); border: 1px solid var(--border); color: var(--text); border-radius: 0; image-rendering: pixelated;" autocomplete="off">
+        <button onclick="saveGeminiKey()" style="padding: 6px 14px; font-size: 0.8rem;">Save</button>
+      </div>
+      <div class="hint" style="margin-top: 4px; font-size: 0.78rem; color: var(--muted);">
+        Uses Gemini 1.5 Flash (free: 15 req/min). Or leave blank to use local GPT-2 (no key needed).
+      </div>
     </div>
 
     <!-- Saved Sets Database -->
@@ -4172,7 +4179,7 @@ const AI_MODEL_NAME = 'Xenova/gpt2';
 function aiForPdfImport() { return true; }
 // AI is always on for test choices — if model isn't loaded yet, it degrades gracefully
 // (falls back to same-subject heuristic options) and upgrades when the model finishes loading
-function aiForTestChoices() { return aiModelReady; }
+function aiForTestChoices() { return aiModelReady || !!getGeminiApiKey(); }
 
 function updateAiStatus(msg, color) {
   const el = document.getElementById('ai-status');
@@ -4193,6 +4200,41 @@ function loadScript(url) {
     script.onerror = reject;
     document.head.appendChild(script);
   });
+}
+
+function saveGeminiKey() {
+  var key = document.getElementById('gemini-api-key').value.trim();
+  if (key) {
+    localStorage.setItem('geminiApiKey', key);
+    updateAiStatus('✅ Gemini API key saved (1.5 Flash, free tier)', 'var(--accent3)');
+    setTimeout(initAiMode, 100); // Re-init AI mode
+  } else {
+    localStorage.removeItem('geminiApiKey');
+    updateAiStatus('⚠️ Enter an API key or use local GPT-2', 'var(--accent3)');
+    setTimeout(initAiMode, 100);
+  }
+}
+
+function getGeminiApiKey() {
+  // Check both localStorage and the input field
+  var stored = localStorage.getItem('geminiApiKey');
+  if (stored) return stored;
+  var el = document.getElementById('gemini-api-key');
+  return el ? el.value.trim() : null;
+}
+
+// Re-initialize AI mode based on whether Gemini key is available
+function initAiMode() {
+  var key = getGeminiApiKey();
+  var keyRow = document.getElementById('ai-gemini-key-row');
+  if (key) {
+    if (keyRow) keyRow.style.display = 'none';
+    updateAiStatus('✅ Using Gemini 1.5 Flash (free tier)', 'var(--accent3)');
+  } else {
+    if (keyRow) keyRow.style.display = 'flex';
+    updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
+    ensureAiModel();
+  }
 }
 
 async function ensureAiModel() {
@@ -4231,28 +4273,61 @@ async function ensureAiModel() {
 }
 
 async function callAiModel(prompt, systemPrompt) {
-  // Don't attempt model loading during active test — only use model if already fully ready
+  var apiKey = getGeminiApiKey();
+  if (apiKey) {
+    return callGeminiApi(prompt, systemPrompt);
+  }
+  // Fall back to local GPT-2
   if (!aiModelReady || !aiModel) throw new Error('AI model not available');
   const model = await ensureAiModel();
   if (!model) throw new Error('AI model not available');
-  // GPT-2 uses text-generation: combine system + user prompt with clear delimiters
-  // The generated_text will include the full prompt, so we strip it at the delimiter
-  var fullPrompt = systemPrompt + '\n\nInput: ' + prompt + '\n\nOutput:\n';
+  var fullPrompt = systemPrompt + '\\n\\nInput: ' + prompt + '\\n\\nOutput:\\n';
   var result = await model(fullPrompt, {
     max_new_tokens: 80,
     temperature: 0.3,
     do_sample: true,
     top_p: 0.9,
     early_stopping: true,
-    // Yield to the event loop between tokens — prevents main-thread blocking
     callback: async function() { await new Promise(r => setTimeout(r, 0)); }
   });
-  // Strip the input prompt, return only the generated continuation
   var generated = result[0].generated_text;
-  var outputStart = generated.lastIndexOf('Output:\n');
+  var outputStart = generated.lastIndexOf('Output:\\n');
   if (outputStart >= 0) {
-    return generated.substring(outputStart + 8); // 8 = len('Output:\n')
+    return generated.substring(outputStart + 8);
   }
+  return generated;
+}
+
+async function callGeminiApi(prompt, systemPrompt) {
+  var apiKey = getGeminiApiKey();
+  if (!apiKey) throw new Error('No Gemini API key');
+  var response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 200,
+          topP: 0.9
+        }
+      })
+    }
+  );
+  if (!response.ok) {
+    var errText = await response.text();
+    throw new Error('Gemini API error: ' + response.status + ' ' + errText.substring(0, 200));
+  }
+  var data = await response.json();
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+    throw new Error('No response from Gemini');
+  }
+  return data.candidates[0].content.parts[0].text;
+}
+
   return generated;
 }
 
@@ -4859,8 +4934,17 @@ handleSharedLink();
 handleTestHistoryLink();
 updateGitHubSubmitButton();
 loadDarkMode();
-// Start loading AI model in background on page load (delayed to avoid blocking initial render)
-setTimeout(function() { ensureAiModel(); }, 2000);
+// On page load: prefer Gemini API key (if saved), otherwise preloader local GPT-2
+setTimeout(function() {
+  if (getGeminiApiKey()) {
+    updateAiStatus('✅ Using Gemini 1.5 Flash (free tier)', 'var(--accent3)');
+  } else {
+    var keyRow = document.getElementById('ai-gemini-key-row');
+    if (keyRow) keyRow.style.display = 'flex';
+    updateAiStatus('🤖 Loading GPT-2 (local model)...', 'var(--accent3)');
+    ensureAiModel();
+  }
+}, 2000);
 
 
 
